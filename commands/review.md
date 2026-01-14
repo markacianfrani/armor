@@ -20,20 +20,20 @@ Review code changes on the current branch using specialized agents, each focusin
 
 2. **Available Review Aspects:**
 
-   - **api** - Review REST endpoints, HTTP semantics, API testing (the-tron)
-   - **errors** - Check error handling for silent failures (silent-failure-hunter)
-   - **types** - Analyze type design and invariants (type-police)
-   - **simplify** - Simplify code for clarity and maintainability (code-simplifier)
+   - **api** - Review REST endpoints, HTTP semantics, API testing (steiner)
+   - **errors** - Check error handling for silent failures (kimahri)
+   - **types** - Analyze type design and invariants (auron)
+   - **simplify** - Simplify code for clarity and maintainability (paine)
    - **slop** - Remove AI-generated code patterns
    - **all** - Run all applicable reviews (default)
 
 3. **Determine Applicable Reviews**
 
    Based on changes:
-   - **If API routes/endpoints changed**: the-tron
-   - **If error handling changed** (try/catch, fallbacks): silent-failure-hunter
-   - **If types added/modified**: type-police
-   - **Always run last**: code-simplifier (polish and refine)
+   - **If API routes/endpoints changed**: steiner
+   - **If error handling changed** (try/catch, fallbacks): kimahri
+   - **If types added/modified**: auron
+   - **Always run last**: paine (polish and refine)
    - **Always check**: slop patterns
 
 4. **Launch Review Agents**
@@ -116,25 +116,25 @@ Review code changes on the current branch using specialized agents, each focusin
 
 ## Agent Descriptions:
 
-**the-tron** (api):
+**steiner** (api):
 - REST conventions and HTTP semantics
 - Status codes, naming consistency
 - API test coverage
 - Stripe API as gold standard
 
-**silent-failure-hunter** (errors):
+**kimahri** (errors):
 - Finds silent failures
 - Reviews catch blocks
 - Checks error logging
 - Validates user feedback on errors
 
-**type-police** (types):
+**auron** (types):
 - Analyzes type encapsulation
 - Reviews invariant expression
 - Rates type design quality
 - Flags over-engineered types
 
-**code-simplifier** (simplify):
+**paine** (simplify):
 - Simplifies complex code
 - Improves clarity and readability
 - Applies project standards

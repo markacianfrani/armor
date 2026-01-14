@@ -1,5 +1,5 @@
 ---
-name: the-scrumdog-millionaire
+name: mog
 description: Use this agent any time the user wants to interface with Jira
 tools: Skill, Bash, Task, Glob, Grep, LS, ExitPlanMode, Read, WebFetch, TodoWrite, WebSearch
 color: red
