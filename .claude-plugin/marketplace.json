@@ -1,0 +1,22 @@
+{
+  "name": "armor",
+  "owner": {
+    "name": "Mark Cianfrani"
+  },
+  "metadata": {
+    "description": "Mark's personal Claude Code plugin marketplace",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "armor",
+      "source": "./",
+      "description": "Mark's Claude Code toolkit - agents, commands, and workflow tools",
+      "version": "1.0.0",
+      "author": {
+        "name": "Mark Cianfrani"
+      },
+      "license": "MIT"
+    }
+  ]
+}
