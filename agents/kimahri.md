@@ -1,5 +1,5 @@
 ---
-name: silent-failure-hunter
+name: kimahri
 description: >
   Use this agent when reviewing code changes to identify
   silent failures, inadequate error handling, and inappropriate fallback

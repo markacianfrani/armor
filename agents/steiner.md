@@ -1,14 +1,14 @@
 ---
-name: the-tron
+name: steiner
 description: Use this agent when creating, modifying, or reviewing REST API endpoints, routes, or HTTP layer code. This includes when adding new API endpoints, changing existing routes, updating HTTP status codes, modifying request/response schemas, or any time the API surface is being touched. Examples: 
 <example>
-Context: User is adding a new endpoint to create evaluation runs. user: "I need to add a POST endpoint to create evaluation runs" assistant: "I'll use the-tron agent to ensure this new endpoint follows REST conventions and has proper testing" 
+Context: User is adding a new endpoint to create evaluation runs. user: "I need to add a POST endpoint to create evaluation runs" assistant: "I'll use steiner agent to ensure this new endpoint follows REST conventions and has proper testing" 
 <commentary>
-	Since the user is working on REST API endpoints, use the-tron agent to review the implementation for proper HTTP conventions, naming, and testing.
+	Since the user is working on REST API endpoints, use steiner agent to review the implementation for proper HTTP conventions, naming, and testing.
 </commentary>
 </example> 
 <example>
-Context: User has just implemented several API routes and wants them reviewed. user: "Here are the new API routes I've implemented: [code]" assistant: "Let me use the the-tron agent to review these routes for REST compliance and testing coverage" <commentary>The user has implemented API routes that need review for REST conventions and testing, which is exactly when to use the the-tron agent.</commentary></example>
+Context: User has just implemented several API routes and wants them reviewed. user: "Here are the new API routes I've implemented: [code]" assistant: "Let me use steiner agent to review these routes for REST compliance and testing coverage" <commentary>The user has implemented API routes that need review for REST conventions and testing, which is exactly when to use the steiner agent.</commentary></example>
 color: yellow
 ---
 

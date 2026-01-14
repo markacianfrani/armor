@@ -1,5 +1,5 @@
 ---
-name: type police
+name: auron
 description: >
   Use this agent when you need expert analysis of type design in your codebase.
   Specifically use it: (1) when introducing a new type to ensure it follows
