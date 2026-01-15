@@ -1,0 +1,11 @@
+{
+  "name": "opencode-migrator",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "migrate": "bun migrate-claude-to-opencode.ts"
+  },
+  "devDependencies": {
+    "bun-types": "latest"
+  }
+}
