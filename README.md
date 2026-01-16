@@ -1,33 +1,18 @@
-# Claude to OpenCode Migrator
+# Armor 
 
-Migrate your Claude Desktop configuration to OpenCode format.
+All my little AI snippets. Likely will be trashed in 6 months like my cursorrules. 
 
-## Usage
+## CC To Opencode WIP
 
 ### Default (migrates .claude to .opencode)
 ```bash
 bun run migrate
 ```
 
-### Custom directories
-```bash
-bun run migrate /path/to/.claude /path/to/.opencode
-```
-
-### Direct script execution
-```bash
-bun migrate-claude-to-opencode.ts
-```
-
 ## What gets migrated
 
 - **Agents**: Creates `.opencode/agent/*.md` files (OpenCode-compatible markdown)
 - **MCP Servers**: Creates `.opencode/opencode.json` with MCP config
-
-## What's NOT migrated
-
-- **Skills**: OpenCode already reads from `.claude/skills/` - no migration needed!
-- **Plugins**: Different APIs between platforms
 
 ## Output
 
