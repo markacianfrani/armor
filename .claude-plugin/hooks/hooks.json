@@ -1,0 +1,16 @@
+{
+  "description": "Prevent accidental rm -rf commands",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/deny-rm-rf.py"
+          }
+        ]
+      }
+    ]
+  }
+}
