@@ -1,4 +1,5 @@
 ---
+name: sow
 description: >
   Use this skill when the user wants to set up a new TypeScript project or add
   standard tooling to an existing one. Triggers on phrases like "set up this repo",
