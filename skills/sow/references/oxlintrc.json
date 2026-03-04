@@ -28,8 +28,39 @@
     "unicorn/prefer-spread": "error",
     "unicorn/no-useless-spread": "error",
     "unicorn/consistent-function-scoping": "error",
-    "unicorn/no-null": "error"
+    "unicorn/no-null": "error",
+    "eslint/max-lines": [
+      "error",
+      {
+        "max": 900,
+        "skipBlankLines": true,
+        "skipComments": true
+      }
+    ],
+    "eslint/complexity": ["warn", { "max": 20 }],
+    "eslint/max-params": ["warn", { "max": 6 }],
+    "eslint/max-depth": ["warn", { "max": 5 }],
+    "eslint/max-statements": ["warn", { "max": 40 }],
+    "eslint/max-lines-per-function": [
+      "warn",
+      {
+        "max": 150,
+        "skipBlankLines": true,
+        "skipComments": true
+      }
+    ],
+    "eslint/max-nested-callbacks": ["warn", { "max": 4 }]
   },
+  "overrides": [
+    {
+      "files": ["**/__tests__/**", "**/*.test.ts", "**/*.spec.ts"],
+      "rules": {
+        "eslint/max-nested-callbacks": "off",
+        "eslint/max-statements": "off",
+        "eslint/max-lines-per-function": "off"
+      }
+    }
+  ],
   "globals": {
     "browser": "off",
     "node": "readonly"

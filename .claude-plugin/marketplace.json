@@ -9,7 +9,7 @@
   },
   "plugins": [
     {
-      "name": "🧑‍🚀",
+      "name": "armor",
       "source": "./",
       "description": "Mark's Claude Code toolkit - agents, commands, and workflow tools",
       "version": "1.0.0",
