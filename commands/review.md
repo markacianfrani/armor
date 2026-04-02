@@ -19,12 +19,12 @@ Review code changes on the current branch using specialized agents, each focusin
    - Default: Run all applicable reviews
 
 2. **Available Review Aspects:**
-
    - **api** - Review REST endpoints, HTTP semantics, API testing (steiner)
    - **errors** - Check error handling for silent failures (kimahri)
    - **types** - Analyze type design and invariants (auron)
    - **simplify** - Simplify code for clarity and maintainability (paine)
    - **slop** - Remove AI-generated code patterns
+   - risk - Identify risky parts of the codebase that may need extra attention
    - **all** - Run all applicable reviews (default)
 
 3. **Determine Applicable Reviews**
@@ -57,7 +57,21 @@ Review code changes on the current branch using specialized agents, each focusin
 
    Fix any slop found directly.
 
-6. **Aggregate Results**
+6. **E2E Test Stability**
+
+   Scan test changes for:
+   - Arbitrary timeouts (sleep, waitForTimeout, setTimeout) used to fix flakiness
+   - Missing root-cause fixes (awaiting actual UI state, network idle, or data readiness)
+   - Retry loops without actionable failure output
+
+   Prefer deterministic waits and fix underlying causes instead of padding with time.
+
+7. Identify risk
+
+- Immediately look at the test changes. Were any tests modified? If so, investigate the changes. Changes to the underlying logic are much more risky than renaming methods.
+- Present the user with a report of the riskiest changes to review.
+
+8. **Aggregate Results**
 
    After agents complete, summarize:
    - **Critical Issues** (must fix)
@@ -65,41 +79,50 @@ Review code changes on the current branch using specialized agents, each focusin
    - **Suggestions** (nice to have)
    - **Strengths** (what's done well)
 
-7. **Provide Action Plan**
+9. **Provide Action Plan**
 
    ```markdown
    # Review Summary
 
    ## Critical Issues (X found)
+
    - [agent-name]: Issue description [file:line]
 
    ## Important Issues (X found)
+
    - [agent-name]: Issue description [file:line]
 
    ## Suggestions (X found)
+
    - [agent-name]: Suggestion [file:line]
 
    ## Slop Removed
+
    - What AI patterns were cleaned up
 
    ## Strengths
+
    - What's well-done in these changes
 
    ## Next Steps
-   1. Fix critical issues first
-   2. Address important issues
-   3. Consider suggestions
-   4. Re-run review after fixes
+
+   1.  Use the `question` tool and present every action item to the user
+   2.  Fix critical issues first
+   3.  Address important issues
+   4.  Consider suggestions
+   5.  Re-run review after fixes
    ```
 
 ## Usage Examples:
 
 **Full review (default):**
+
 ```
 /review
 ```
 
 **Specific aspects:**
+
 ```
 /review errors types
 # Reviews only error handling and type design
@@ -117,24 +140,28 @@ Review code changes on the current branch using specialized agents, each focusin
 ## Agent Descriptions:
 
 **steiner** (api):
+
 - REST conventions and HTTP semantics
 - Status codes, naming consistency
 - API test coverage
 - Stripe API as gold standard
 
 **kimahri** (errors):
+
 - Finds silent failures
 - Reviews catch blocks
 - Checks error logging
 - Validates user feedback on errors
 
 **auron** (types):
+
 - Analyzes type encapsulation
 - Reviews invariant expression
 - Rates type design quality
 - Flags over-engineered types
 
 **paine** (simplify):
+
 - Simplifies complex code
 - Improves clarity and readability
 - Applies project standards

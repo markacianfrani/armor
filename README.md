@@ -1,23 +1,35 @@
-# Armor 
+# Armor
 
-All my little AI snippets. Likely will be trashed in 6 months like my cursorrules. 
+All my little AI snippets.
 
-## CC To Opencode WIP
+Shared coding harness config for:
+- Claude Code
+- pi
 
-### Default (migrates .claude to .opencode)
+## Layout
+
+- `agents/` — shared subagent definitions
+- `commands/` — shared command definitions
+- `skills/` — shared skills
+- `scripts/init.sh` — symlink installer
+- `bin/armor` — small CLI wrapper
+
+## Init
+
 ```bash
-bun run migrate
+armor init
 ```
 
-## What gets migrated
+That links shared config into `~/.agents/`:
+- `agents/*.md` → `~/.agents/agents/`
+- `commands/*.md` → `~/.agents/commands/`
+- `skills/*` → `~/.agents/skills/`
 
-- **Agents**: Creates `.opencode/agent/*.md` files (OpenCode-compatible markdown)
-- **MCP Servers**: Creates `.opencode/opencode.json` with MCP config
+Claude also gets direct links:
+- `agents/*.md` → `~/.claude/agents/`
+- `commands/*.md` → `~/.claude/commands/`
 
-## Output
-
-The script generates:
-- `.opencode/agent/*.md` - Agent definitions in OpenCode markdown format
-- `.opencode/opencode.json` - MCP server configuration only
-
-Your `.claude/` directory remains unchanged, allowing you to use both platforms from the same source configs.
+The init script also:
+- creates an OpenCode-compatible `my-review.md` alias for `commands/review.md` in `~/.agents/commands/`
+- removes stale repo-backed links from old pi/OpenCode install dirs
+- backs up conflicting real files to `*.bak`

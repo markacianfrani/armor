@@ -1,9 +1,12 @@
 {
-  "name": "opencode-migrator",
+  "name": "armor",
   "version": "1.0.0",
   "type": "module",
+  "bin": {
+    "armor": "./bin/armor"
+  },
   "scripts": {
-    "migrate": "bun migrate-claude-to-opencode.ts"
+    "init": "./scripts/init.sh"
   },
   "devDependencies": {
     "bun-types": "latest"

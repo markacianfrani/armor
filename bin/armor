@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SELF="$(readlink -f "$0")"
+REPO_DIR="$(cd "$(dirname "$SELF")/.." && pwd)"
+
+case "${1:-}" in
+  init)
+    exec "$REPO_DIR/scripts/init.sh"
+    ;;
+  *)
+    echo "usage: armor <command>"
+    echo
+    echo "commands:"
+    echo "  init    Symlink shared config into ~/.agents and Claude dirs"
+    ;;
+esac
