@@ -22,7 +22,7 @@ Use browser tooling instead when the page requires login, heavy client-side rend
 
 ## How to fetch
 
-Run the bundled executable relative to this skill directory:
+Run the wrapper script relative to this skill directory (requires bun or node):
 
 ```bash
 ./web-fetch <url> [format]

@@ -1,5 +1,5 @@
 ---
-name: doc-triage
+name: docs-triage
 description: >
   Triage a documentation set — Confluence space, local folder, or any collection of docs —
   to find overlapping content, consolidation opportunities, staleness, and backlink candidates.

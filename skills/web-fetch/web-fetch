@@ -1,20 +1,14 @@
 #!/bin/bash
-# Platform detection and binary selection
-OS="$(uname -s | tr '[:upper:]' '[:lower:]')"
-ARCH="$(uname -m)"
+SKILL_DIR="$(cd "$(dirname "$0")" && pwd)"
 
-case "$ARCH" in
-  x86_64|amd64) ARCH="x64" ;;
-  aarch64|arm64) ARCH="arm64" ;;
-esac
-
-BINARY="$(dirname "$0")/bin/web-fetch-${OS}-${ARCH}"
-
-if [ ! -f "$BINARY" ]; then
-  echo "Error: No binary found for ${OS}-${ARCH}" >&2
-  echo "Available binaries:" >&2
-  ls "$(dirname "$0")/bin/" >&2
-  exit 1
+# Install deps if needed
+if [ ! -d "$SKILL_DIR/node_modules" ]; then
+  (cd "$SKILL_DIR" && bun install --frozen-lockfile --silent 2>/dev/null || npm install --silent) >&2
 fi
 
-exec "$BINARY" "$@"
+# Prefer bun, fall back to node
+if command -v bun &>/dev/null; then
+  exec bun run "$SKILL_DIR/src/fetch.ts" "$@"
+else
+  exec npx tsx "$SKILL_DIR/src/fetch.ts" "$@"
+fi

@@ -19,6 +19,10 @@ SHARED_SKILL_TARGETS=(
   "$HOME/.agents/skills"
 )
 
+CLAUDE_SKILL_TARGETS=(
+  "$HOME/.claude/skills"
+)
+
 CLAUDE_AGENT_TARGETS=(
   "$HOME/.claude/agents"
 )
@@ -118,7 +122,7 @@ remove_stale_links() {
 
 link_md_dir "$AGENTS_DIR" "${SHARED_AGENT_TARGETS[@]}" "${CLAUDE_AGENT_TARGETS[@]}"
 link_md_dir "$COMMANDS_DIR" "${SHARED_COMMAND_TARGETS[@]}" "${CLAUDE_COMMAND_TARGETS[@]}"
-link_skill_dir "$SKILLS_DIR" "${SHARED_SKILL_TARGETS[@]}"
+link_skill_dir "$SKILLS_DIR" "${SHARED_SKILL_TARGETS[@]}" "${CLAUDE_SKILL_TARGETS[@]}"
 
 # OpenCode compatibility alias in shared commands
 mkdir -p "$HOME/.agents/commands"
