@@ -29,6 +29,8 @@ Claude also gets direct links:
 - `agents/*.md` → `~/.claude/agents/`
 - `commands/*.md` → `~/.claude/commands/`
 
+For pi, commands stay in `~/.agents/commands/` and are loaded via prompt-template settings (see `.pi/settings.json`).
+
 The init script also:
 - creates an OpenCode-compatible `my-review.md` alias for `commands/review.md` in `~/.agents/commands/`
 - removes stale repo-backed links from old pi/OpenCode install dirs

@@ -1,0 +1,12 @@
+{
+  "defaultProvider": "openai-codex",
+  "defaultModel": "gpt-5.4",
+  "theme": "flexoki-dark",
+  "packages": [
+    "/home/god/code/pi-theme-flexoki",
+    "npm:pi-mcp-adapter"
+  ],
+  "prompts": [
+    "~/.agents/commands"
+  ]
+}
