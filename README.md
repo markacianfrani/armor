@@ -11,6 +11,7 @@ Shared coding harness config for:
 - `agents/` — shared subagent definitions
 - `commands/` — shared command definitions
 - `skills/` — shared skills
+- `extensions/` — pi extensions
 - `scripts/init.sh` — symlink installer
 - `bin/armor` — small CLI wrapper
 
@@ -24,6 +25,9 @@ That links shared config into `~/.agents/`:
 - `agents/*.md` → `~/.agents/agents/`
 - `commands/*.md` → `~/.agents/commands/`
 - `skills/*` → `~/.agents/skills/`
+
+Pi extensions get linked directly:
+- `extensions/*.ts` → `~/.pi/agent/extensions/`
 
 Claude also gets direct links:
 - `agents/*.md` → `~/.claude/agents/`

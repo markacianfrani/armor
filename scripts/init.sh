@@ -6,6 +6,7 @@ REPO_DIR="$(cd "$(dirname "$SELF")/.." && pwd)"
 AGENTS_DIR="$REPO_DIR/agents"
 COMMANDS_DIR="$REPO_DIR/commands"
 SKILLS_DIR="$REPO_DIR/skills"
+EXTENSIONS_DIR="$REPO_DIR/extensions"
 
 SHARED_AGENT_TARGETS=(
   "$HOME/.agents/agents"
@@ -21,6 +22,10 @@ SHARED_SKILL_TARGETS=(
 
 CLAUDE_SKILL_TARGETS=(
   "$HOME/.claude/skills"
+)
+
+PI_EXTENSION_TARGETS=(
+  "$HOME/.pi/agent/extensions"
 )
 
 CLAUDE_AGENT_TARGETS=(
@@ -104,6 +109,37 @@ link_skill_dir() {
   done
 }
 
+link_extensions() {
+  local source_dir="$1"
+  shift
+  local targets=("$@")
+
+  for source_file in "$source_dir"/*.ts; do
+    [ -f "$source_file" ] || continue
+    local name
+    name=$(basename "$source_file")
+
+    for target_dir in "${targets[@]}"; do
+      mkdir -p "$target_dir"
+      local target="$target_dir/$name"
+
+      if [ -L "$target" ] && [ "$(readlink "$target")" = "$source_file" ]; then
+        skipped=$((skipped + 1))
+        continue
+      fi
+
+      if [ -e "$target" ] && [ ! -L "$target" ]; then
+        mv "$target" "${target}.bak"
+        backed_up=$((backed_up + 1))
+      fi
+
+      [ -L "$target" ] && rm -f "$target"
+      ln -s "$source_file" "$target"
+      linked=$((linked + 1))
+    done
+  done
+}
+
 remove_stale_links() {
   for stale_dir in "${OLD_TARGETS[@]}"; do
     [ -d "$stale_dir" ] || continue
@@ -123,6 +159,7 @@ remove_stale_links() {
 link_md_dir "$AGENTS_DIR" "${SHARED_AGENT_TARGETS[@]}" "${CLAUDE_AGENT_TARGETS[@]}"
 link_md_dir "$COMMANDS_DIR" "${SHARED_COMMAND_TARGETS[@]}" "${CLAUDE_COMMAND_TARGETS[@]}"
 link_skill_dir "$SKILLS_DIR" "${SHARED_SKILL_TARGETS[@]}" "${CLAUDE_SKILL_TARGETS[@]}"
+link_extensions "$EXTENSIONS_DIR" "${PI_EXTENSION_TARGETS[@]}"
 
 # OpenCode compatibility alias in shared commands
 mkdir -p "$HOME/.agents/commands"
