@@ -10,6 +10,7 @@ EXTENSIONS_DIR="$REPO_DIR/extensions"
 
 SHARED_AGENT_TARGETS=(
   "$HOME/.agents/agents"
+  "$HOME/.pi/agent/agents"
 )
 
 SHARED_COMMAND_TARGETS=(
@@ -37,7 +38,6 @@ CLAUDE_COMMAND_TARGETS=(
 )
 
 OLD_TARGETS=(
-  "$HOME/.pi/agent/agents"
   "$HOME/.config/opencode/agent"
   "$HOME/.config/opencode/commands"
 )

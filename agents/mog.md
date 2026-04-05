@@ -2,7 +2,7 @@
 name: mog
 description: "Jira ticket manager — use when creating, updating, or querying Jira tickets. Handles epics, stories, tasks, and bugs with proper formatting and project conventions."
 mode: subagent
-tools: read, grep, glob, bash
+tools: read, grep, find, bash
 skill: jira
 ---
 
