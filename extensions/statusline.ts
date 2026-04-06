@@ -71,10 +71,18 @@ function contextColor(pct: number): string {
 
 // ── Context bar ──
 
+function clampBarPercent(percent: number): number {
+  if (!Number.isFinite(percent)) {
+    return 0;
+  }
+  return Math.max(0, Math.min(percent, 100));
+}
+
 function renderBar(percent: number): string {
   const color = contextColor(percent);
   const barWidth = 10;
-  const filled = Math.round((percent / 100) * barWidth);
+  const safePercent = clampBarPercent(percent);
+  const filled = Math.round((safePercent / 100) * barWidth);
   return fg(color, "▎") + fg(color, "█".repeat(filled)) + fg(DIM, "░".repeat(barWidth - filled));
 }
 
@@ -122,7 +130,7 @@ function formatCountdown(resetAt: number | undefined): string | undefined {
 }
 
 function renderWindow(window: UsageWindow, barWidth: number): string {
-  const pct = Math.min(Math.round(window.usedPercent), 100);
+  const pct = clampBarPercent(Math.round(window.usedPercent));
   const color = contextColor(pct);
 
   if (pct >= FULL_THRESHOLD) {
