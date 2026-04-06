@@ -14,6 +14,7 @@ You help set up TypeScript projects with standardized tooling: oxlint for lintin
 ## Dependencies
 
 Dev dependencies to install:
+
 - `oxlint`
 - `oxfmt`
 - `typescript`
@@ -30,6 +31,7 @@ First, assess the current state:
 ## Package Manager
 
 Detect from lockfiles:
+
 - `bun.lockb` or `bun.lock` → bun
 - `pnpm-lock.yaml` → pnpm
 - `yarn.lock` → yarn
@@ -42,6 +44,7 @@ If no lockfile exists or multiple are present, ask the user which they prefer.
 ### 1. Install Dependencies
 
 Using the detected package manager:
+
 ```bash
 # bun
 bun add -d oxlint oxfmt typescript @j178/prek
@@ -70,6 +73,7 @@ For tsconfig, adjust `paths` and `baseUrl` based on project structure if needed.
 Merge scripts from `references/package-scripts.json` into the project's `package.json`.
 
 Adjust the script runner prefix based on package manager:
+
 - bun: `bun run check`, or just `bun check`
 - pnpm: `pnpm check`
 - npm/yarn: `npm run check`
@@ -79,11 +83,13 @@ Adjust the script runner prefix based on package manager:
 If eslint, prettier, or similar exists, **ask the user** before removing:
 
 > I found existing [eslint/prettier/etc] configuration. Would you like me to:
+>
 > 1. Remove it and use oxlint/oxfmt instead
 > 2. Keep it alongside the new tooling
 > 3. Skip linting/formatting setup
 
 If they choose to remove, delete:
+
 - `.eslintrc*`, `eslint.config.*`
 - `.prettierrc*`, `prettier.config.*`
 - Related packages from dependencies
@@ -91,11 +97,13 @@ If they choose to remove, delete:
 ### 5. Type-Aware Linting
 
 oxlint's type-aware rules require the `--tsconfig` flag. This is already included in the lint script:
+
 ```json
 "lint": "oxlint --tsconfig tsconfig.json"
 ```
 
 This enables rules like:
+
 - `typescript/no-floating-promises`
 - `typescript/no-misused-promises`
 - `typescript/no-unnecessary-type-assertion`
@@ -105,14 +113,14 @@ This enables rules like:
 
 The oxlint config includes complexity guardrails as warnings with high defaults — they're meant to catch egregious cases, not nag on normal code:
 
-| Rule | Default | What it limits |
-|------|---------|----------------|
-| `complexity` | 20 | Cyclomatic complexity per function |
-| `max-params` | 6 | Function parameters |
-| `max-depth` | 5 | Block nesting depth |
-| `max-statements` | 40 | Statements per function |
-| `max-lines-per-function` | 150 | Lines per function (skips blanks + comments) |
-| `max-nested-callbacks` | 4 | Nested callback depth |
+| Rule                     | Default | What it limits                               |
+| ------------------------ | ------- | -------------------------------------------- |
+| `complexity`             | 20      | Cyclomatic complexity per function           |
+| `max-params`             | 6       | Function parameters                          |
+| `max-depth`              | 5       | Block nesting depth                          |
+| `max-statements`         | 40      | Statements per function                      |
+| `max-lines-per-function` | 150     | Lines per function (skips blanks + comments) |
+| `max-nested-callbacks`   | 4       | Nested callback depth                        |
 
 Test files (`__tests__/**`, `*.test.ts`, `*.spec.ts`) are excluded from `max-nested-callbacks`, `max-statements`, and `max-lines-per-function` since `describe`/`it` nesting naturally inflates these.
 
@@ -135,11 +143,13 @@ types = ["ts", "tsx", "js", "jsx", "json"]
 ```
 
 Install the git hooks:
+
 ```bash
 npx prek install
 ```
 
 Add a `prepare` script to `package.json` so hooks are installed automatically after `npm install`:
+
 ```json
 "prepare": "prek install"
 ```
@@ -147,6 +157,7 @@ Add a `prepare` script to `package.json` so hooks are installed automatically af
 ## Verification
 
 After setup, run:
+
 ```bash
 # Type check
 <pkg-manager> run check

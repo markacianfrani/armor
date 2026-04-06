@@ -17,6 +17,7 @@ acli --version
 ```
 
 If not installed or authenticated, direct the user to:
+
 - Install: https://developer.atlassian.com/cloud/acli/guides/introduction
 - Run `acli --help` for authentication setup
 
@@ -25,8 +26,10 @@ If not installed or authenticated, direct the user to:
 1. Check the repo's `AGENTS.md` or `CLAUDE.md` for a `jira_project_key` or similar
 2. If not found, ask the user for the project key
 3. After the user provides it, add it to the project's `CLAUDE.md` for future reference:
+
    ```markdown
    ## JIRA
+
    Project Key: PROJ
    ```
 
@@ -105,15 +108,16 @@ acli jira workitem edit --from-json /tmp/edit.json --yes
 
 ## Ticket Types
 
-| Type | Use For |
-|------|---------|
-| Story | Code changes, new features |
-| Task | Documentation, config, non-code work |
-| Bug | Defects in existing functionality |
+| Type  | Use For                              |
+| ----- | ------------------------------------ |
+| Story | Code changes, new features           |
+| Task  | Documentation, config, non-code work |
+| Bug   | Defects in existing functionality    |
 
 ## Ticket Template
 
 ### Title
+
 - Imperative verb + specific object + context
 - Under 60 characters
 - Examples:
@@ -125,47 +129,58 @@ acli jira workitem edit --from-json /tmp/edit.json --yes
 Common verbs: Implement, Add, Switch, Remove, Update, Fix, Migrate, Refactor
 
 ### Description
+
 1-3 sentences covering **what** and **why**.
 
 ✅ Good:
+
 > Implement Pydantic models for config files to catch validation errors at startup. Currently getting silent failures on typos.
 
 ❌ Bad:
+
 > Add validation (no context)
 
 ### Definition of Done
+
 Bullet list of **specific, measurable outcomes** (not implementation steps).
 
 ✅ Good (outcomes):
+
 - Config files validate on startup
 - Invalid configs produce clear error with field name
 - All existing configs pass validation
 - Unit tests cover each config type
 
 ❌ Bad (implementation steps):
+
 - Use Pydantic BaseModel
 - Create schema for each file
 - Add try/catch blocks
 
 DoD guidelines:
+
 - 3-7 items (if more, split the story)
 - Outcome-focused, not prescriptive
 - Include code, tests, and docs where relevant
 - Specific enough to verify completion
 
 ### Implementation Details (Optional)
+
 Use for context that helps but doesn't belong in DoD:
+
 - Documentation links
 - Technical constraints
 - Permission requirements
 - Related tickets
 
 ✅ Good:
+
 > See Databricks docs: [link]
 > Requires S3:PutBucketNotification permission
 > Related: FOO-823
 
 ❌ Bad:
+
 > Step 1: Create the file. Step 2: Add imports...
 
 ## Sizing Check
@@ -175,6 +190,7 @@ Before creating, verify the story fits one sprint. If the DoD has more than 7 it
 ## Other Commands
 
 Discover additional commands via:
+
 ```bash
 acli jira --help
 acli jira workitem --help

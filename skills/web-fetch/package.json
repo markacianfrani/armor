@@ -2,11 +2,11 @@
   "name": "web-fetch-skill",
   "private": true,
   "type": "module",
+  "scripts": {
+    "run": "bun run src/fetch.ts"
+  },
   "dependencies": {
     "html-to-text": "^9.0.5",
     "turndown": "^7.2.2"
-  },
-  "scripts": {
-    "run": "bun run src/fetch.ts"
   }
 }

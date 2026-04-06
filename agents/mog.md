@@ -30,6 +30,7 @@ Always refer to the jira skill first.
 **All new tickets MUST belong to an epic.** Before creating any ticket:
 
 1. **Fetch active epics** for the project:
+
    ```bash
    acli jira workitem search --jql "project = SW AND type = Epic AND status != Done" --fields key,summary,status
    ```

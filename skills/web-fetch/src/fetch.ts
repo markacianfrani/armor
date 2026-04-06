@@ -53,9 +53,7 @@ function truncate(content: string): string {
 async function webFetch(url: string, format: Format): Promise<string> {
   // Convert GitHub blob URL to raw URL
   if (url.includes("github.com") && url.includes("/blob/")) {
-    url = url
-      .replace("github.com", "raw.githubusercontent.com")
-      .replace("/blob/", "/");
+    url = url.replace("github.com", "raw.githubusercontent.com").replace("/blob/", "/");
   }
 
   // Try content negotiation for markdown/text
@@ -73,9 +71,7 @@ async function webFetch(url: string, format: Format): Promise<string> {
     if (response.ok) {
       const html = await response.text();
       return truncate(
-        format === "markdown"
-          ? convertHTMLToMarkdown(html)
-          : convertHTMLToText(html),
+        format === "markdown" ? convertHTMLToMarkdown(html) : convertHTMLToText(html),
       );
     }
   }

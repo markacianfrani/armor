@@ -14,6 +14,7 @@ description: >
 Use this skill when the user gives you a URL and wants the page contents or information derived from that page.
 
 Prefer this skill over browser automation when:
+
 - the page is publicly fetchable
 - the user wants content, not interaction
 - JavaScript rendering is not obviously required
@@ -29,6 +30,7 @@ Run the wrapper script relative to this skill directory (requires bun or node):
 ```
 
 Formats:
+
 - `markdown` — preferred default for most reading/summarization tasks
 - `text` — use when the user wants plain extracted text
 - `html` — use only when the user explicitly wants raw markup or you need to inspect the source
@@ -44,6 +46,7 @@ Examples:
 ## Behavior
 
 The fetcher already does the following:
+
 - requests `Accept: text/markdown, text/html;q=0.9` first, so sites that support agent-friendly markdown can return it directly
 - falls back to converting HTML when the server does not return markdown
 - converts GitHub `.../blob/...` URLs to raw content URLs automatically

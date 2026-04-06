@@ -31,7 +31,8 @@ Conduct a thorough interview to capture requirements for a feature or project sp
    - Include: overview, requirements, technical notes, open questions
 
 ## Interview Tips
-- Don't be like the guy who builds Seinfeld's cabinets  
+
+- Don't be like the guy who builds Seinfeld's cabinets
 - Ask one focused question at a time
 - Avoid yes/no questions — aim for specifics
 - Skip the obvious stuff — dig into the hard parts
