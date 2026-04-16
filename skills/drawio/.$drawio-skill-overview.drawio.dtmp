@@ -1,0 +1,160 @@
+<mxfile host="Electron" agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/29.6.6 Chrome/144.0.7559.236 Electron/40.8.4 Safari/537.36" version="29.6.6">
+  <diagram name="drawio-skill-overview" id="0">
+    <mxGraphModel dx="3169" dy="1333" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1100" math="0" shadow="0" adaptiveColors="auto">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="10" parent="1" style="swimlane;startSize=32;rounded=1;html=1;whiteSpace=wrap;fillColor=#dae8fc;strokeColor=#6c8ebf;fontStyle=1;" value="Triggers &amp; format choice" vertex="1">
+          <mxGeometry height="280" width="360" x="20" y="20" as="geometry" />
+        </mxCell>
+        <mxCell id="11" parent="10" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" value="&lt;b&gt;Use this skill when&lt;/b&gt;&lt;br&gt;The user asks to create, draw, design, or export a diagram&lt;br&gt;Also triggers on draw.io, drawio, drawoi, and .drawio files" vertex="1">
+          <mxGeometry height="90" width="320" x="20" y="50" as="geometry" />
+        </mxCell>
+        <mxCell id="12" parent="10" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" value="&lt;b&gt;No format requested&lt;/b&gt;&lt;br&gt;Create a .drawio file and open it" vertex="1">
+          <mxGeometry height="70" width="150" x="20" y="160" as="geometry" />
+        </mxCell>
+        <mxCell id="13" parent="10" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;" value="&lt;b&gt;Export requested&lt;/b&gt;&lt;br&gt;png, svg, or pdf&quot;" vertex="1">
+          <mxGeometry height="70" width="150" x="190" y="160" as="geometry" />
+        </mxCell>
+        <mxCell id="20" parent="1" style="swimlane;startSize=32;rounded=1;html=1;whiteSpace=wrap;fillColor=#d5e8d4;strokeColor=#82b366;fontStyle=1;" value="Core workflow" vertex="1">
+          <mxGeometry height="540" width="520" x="420" y="20" as="geometry" />
+        </mxCell>
+        <mxCell id="21" parent="20" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" value="&lt;b&gt;1. Generate draw.io XML&lt;/b&gt;&lt;br&gt;Use native mxGraphModel for the requested diagram" vertex="1">
+          <mxGeometry height="70" width="160" x="180" y="50" as="geometry" />
+        </mxCell>
+        <mxCell id="22" parent="20" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" value="&lt;b&gt;2. Write the file&lt;/b&gt;&lt;br&gt;Save a .drawio file in the current working directory" vertex="1">
+          <mxGeometry height="70" width="160" x="180" y="150" as="geometry" />
+        </mxCell>
+        <mxCell id="23" parent="20" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" value="&lt;b&gt;3. Optional post-process&lt;/b&gt;&lt;br&gt;Run @drawio/postprocess if available&lt;br&gt;Skip silently if not" vertex="1">
+          <mxGeometry height="70" width="160" x="180" y="250" as="geometry" />
+        </mxCell>
+        <mxCell id="24" parent="20" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" value="&lt;b&gt;4. Export if needed&lt;/b&gt;&lt;br&gt;Use the CLI with --embed-diagram&lt;br&gt;Delete the source .drawio after successful export" vertex="1">
+          <mxGeometry height="80" width="160" x="180" y="350" as="geometry" />
+        </mxCell>
+        <mxCell id="25" parent="20" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" value="&lt;b&gt;5. Open the result&lt;/b&gt;&lt;br&gt;Open the exported file or the .drawio file&quot;" vertex="1">
+          <mxGeometry height="60" width="160" x="180" y="460" as="geometry" />
+        </mxCell>
+        <mxCell id="30" parent="1" style="swimlane;startSize=32;rounded=1;html=1;whiteSpace=wrap;fillColor=#f8cecc;strokeColor=#b85450;fontStyle=1;" value="CLI, filenames, and opening" vertex="1">
+          <mxGeometry height="280" width="500" x="980" y="20" as="geometry" />
+        </mxCell>
+        <mxCell id="31" parent="30" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;" value="&lt;b&gt;Filename rules&lt;/b&gt;&lt;br&gt;Use lowercase hyphenated names&lt;br&gt;Exports use double extensions like name.drawio.png" vertex="1">
+          <mxGeometry height="80" width="210" x="20" y="50" as="geometry" />
+        </mxCell>
+        <mxCell id="32" parent="30" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;" value="&lt;b&gt;Locate the CLI&lt;/b&gt;&lt;br&gt;Try which drawio first&lt;br&gt;Fallbacks: macOS app path or Linux drawio" vertex="1">
+          <mxGeometry height="80" width="220" x="250" y="50" as="geometry" />
+        </mxCell>
+        <mxCell id="33" parent="30" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;" value="&lt;b&gt;Export command&lt;/b&gt;&lt;br&gt;drawio -x -f &lt;format&gt; -e -b 10 -o &lt;output&gt; &lt;input.drawio&gt;" vertex="1">
+          <mxGeometry height="90" width="210" x="20" y="150" as="geometry" />
+        </mxCell>
+        <mxCell id="34" parent="30" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;" value="&lt;b&gt;Open commands&lt;/b&gt;&lt;br&gt;macOS: open &lt;file&gt;&lt;br&gt;Linux: xdg-open &lt;file&gt;" vertex="1">
+          <mxGeometry height="70" width="220" x="250" y="150" as="geometry" />
+        </mxCell>
+        <mxCell id="40" parent="1" style="swimlane;startSize=32;rounded=1;html=1;whiteSpace=wrap;fillColor=#e1d5e7;strokeColor=#9673a6;fontStyle=1;" value="XML rules" vertex="1">
+          <mxGeometry height="460" width="700" x="-340" y="380" as="geometry" />
+        </mxCell>
+        <mxCell id="41" parent="40" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9673a6;" value="&lt;b&gt;Basic structure&lt;/b&gt;&lt;br&gt;Include root cells 0 and 1&lt;br&gt;All diagram cells normally use parent=1" vertex="1">
+          <mxGeometry height="80" width="200" x="20" y="50" as="geometry" />
+        </mxCell>
+        <mxCell id="42" parent="40" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9673a6;" value="&lt;b&gt;Generate XML directly&lt;/b&gt;&lt;br&gt;Use native draw.io XML, not Mermaid or CSV" vertex="1">
+          <mxGeometry height="80" width="200" x="250" y="50" as="geometry" />
+        </mxCell>
+        <mxCell id="43" parent="40" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9673a6;" value="&lt;b&gt;Every edge needs geometry&lt;/b&gt;&lt;br&gt;Include mxGeometry relative=1 on each edge" vertex="1">
+          <mxGeometry height="80" width="190" x="480" y="50" as="geometry" />
+        </mxCell>
+        <mxCell id="44" parent="40" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9673a6;" value="&lt;b&gt;No XML comments&lt;/b&gt;&lt;br&gt;Comments are forbidden in the output" vertex="1">
+          <mxGeometry height="80" width="200" x="20" y="180" as="geometry" />
+        </mxCell>
+        <mxCell id="45" parent="40" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9673a6;" value="&lt;b&gt;Escape special characters&lt;/b&gt;&lt;br&gt;Use &amp;amp;, &amp;lt;, &amp;gt;, and &amp;quot;&lt;br&gt;Keep ids unique" vertex="1">
+          <mxGeometry height="80" width="200" x="250" y="180" as="geometry" />
+        </mxCell>
+        <mxCell id="46" parent="40" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9673a6;" value="&lt;b&gt;XML reference&lt;/b&gt;&lt;br&gt;Fetch xml-reference.md for styles, routing, containers, and metadata" vertex="1">
+          <mxGeometry height="80" width="190" x="480" y="180" as="geometry" />
+        </mxCell>
+        <mxCell id="50" parent="1" style="swimlane;startSize=32;rounded=1;html=1;whiteSpace=wrap;fillColor=#fff2cc;strokeColor=#d6b656;fontStyle=1;" value="Troubleshooting" vertex="1">
+          <mxGeometry height="460" width="720" x="880" y="370" as="geometry" />
+        </mxCell>
+        <mxCell id="51" parent="50" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;" value="&lt;b&gt;CLI not found&lt;/b&gt;&lt;br&gt;Keep the .drawio file&lt;br&gt;Tell the user they can install draw.io desktop or open the file directly" vertex="1">
+          <mxGeometry height="90" width="210" x="20" y="50" as="geometry" />
+        </mxCell>
+        <mxCell id="52" parent="50" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;" value="&lt;b&gt;Empty or corrupt export&lt;/b&gt;&lt;br&gt;Validate XML well-formedness before writing" vertex="1">
+          <mxGeometry height="90" width="210" x="250" y="50" as="geometry" />
+        </mxCell>
+        <mxCell id="53" parent="50" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;" value="&lt;b&gt;Diagram looks blank&lt;/b&gt;&lt;br&gt;Usually missing root cells 0 and 1" vertex="1">
+          <mxGeometry height="90" width="210" x="480" y="50" as="geometry" />
+        </mxCell>
+        <mxCell id="54" parent="50" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;" value="&lt;b&gt;Edges do not render&lt;/b&gt;&lt;br&gt;The edge cell is probably missing mxGeometry relative=1" vertex="1">
+          <mxGeometry height="90" width="210" x="135" y="180" as="geometry" />
+        </mxCell>
+        <mxCell id="55" parent="50" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;" value="&lt;b&gt;File will not open&lt;/b&gt;&lt;br&gt;Print the absolute path so the user can open it manually" vertex="1">
+          <mxGeometry height="90" width="210" x="365" y="180" as="geometry" />
+        </mxCell>
+        <mxCell id="101" edge="1" parent="1" source="11" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;strokeColor=#4d4d4d;" target="21" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="102" edge="1" parent="1" source="21" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;strokeColor=#4d4d4d;" target="22" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="103" edge="1" parent="1" source="22" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;strokeColor=#4d4d4d;" target="23" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="104" edge="1" parent="1" source="23" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;strokeColor=#4d4d4d;" target="24" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="105" edge="1" parent="1" source="24" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;strokeColor=#4d4d4d;" target="25" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="106" edge="1" parent="1" source="13" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;strokeColor=#4d4d4d;" target="24" value="requested">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="107" edge="1" parent="1" source="12" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;strokeColor=#4d4d4d;" target="25" value="default">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="108" edge="1" parent="1" source="24" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;strokeColor=#b85450;dashed=1;" target="32" value="uses">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="109" edge="1" parent="1" source="24" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;strokeColor=#b85450;dashed=1;" target="33" value="command">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="110" edge="1" parent="1" source="24" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;strokeColor=#b85450;dashed=1;" target="31" value="naming">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="111" edge="1" parent="1" source="25" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;strokeColor=#b85450;dashed=1;" target="34" value="open">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="112" edge="1" parent="1" source="21" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;strokeColor=#9673a6;dashed=1;" target="41" value="must follow">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="113" edge="1" parent="1" source="21" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;strokeColor=#9673a6;dashed=1;" target="42" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="114" edge="1" parent="1" source="21" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;strokeColor=#9673a6;dashed=1;" target="43" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="115" edge="1" parent="1" source="21" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;strokeColor=#9673a6;dashed=1;" target="44" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="116" edge="1" parent="1" source="21" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;strokeColor=#9673a6;dashed=1;" target="45" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="117" edge="1" parent="1" source="21" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;strokeColor=#9673a6;dashed=1;" target="46" value="reference">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="118" edge="1" parent="1" source="24" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;strokeColor=#d6b656;dashed=1;" target="51" value="fallback">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="119" edge="1" parent="1" source="24" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;strokeColor=#d6b656;dashed=1;" target="52" value="validate">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="120" edge="1" parent="1" source="21" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;strokeColor=#d6b656;dashed=1;" target="53" value="missing roots">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="121" edge="1" parent="1" source="21" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;strokeColor=#d6b656;dashed=1;" target="54" value="edge geometry">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="122" edge="1" parent="1" source="25" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;strokeColor=#d6b656;dashed=1;" target="55" value="manual path">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
