@@ -3,5 +3,6 @@
   "defaultModel": "gpt-5.4",
   "theme": "flexoki-dark",
   "packages": ["npm:pi-theme-flexoki", "npm:pi-mcp-adapter"],
-  "prompts": ["~/.agents/commands"]
+  "prompts": ["~/.agents/commands"],
+  "enableInstallTelemetry": false
 }
