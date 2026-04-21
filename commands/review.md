@@ -22,6 +22,7 @@ Review code changes on the current branch using specialized agents, each focusin
    - **api** - Review REST endpoints, HTTP semantics, API testing (steiner)
    - **errors** - Check error handling for silent failures (kimahri)
    - **types** - Analyze type design and invariants (auron)
+   - **tests** - Interrogate test quality; flag tautology, over-mocking, framework-testing, vague names (lulu)
    - **simplify** - Simplify code for clarity and maintainability (paine)
    - **slop** - Remove AI-generated code patterns
    - risk - Identify risky parts of the codebase that may need extra attention
@@ -33,6 +34,7 @@ Review code changes on the current branch using specialized agents, each focusin
    - **If API routes/endpoints changed**: steiner
    - **If error handling changed** (try/catch, fallbacks): kimahri
    - **If types added/modified**: auron
+   - **If test files changed** (`*.spec.*`, `*_spec.rb`, `*_test.*`, `test_*.py`): lulu
    - **Always run last**: paine (polish and refine)
    - **Always check**: slop patterns
 
@@ -159,6 +161,13 @@ Review code changes on the current branch using specialized agents, each focusin
 - Reviews invariant expression
 - Rates type design quality
 - Flags over-engineered types
+
+**lulu** (tests):
+
+- Ranks every test in the diff by the regression it actually protects
+- Flags tautologies, over-mocking, framework-testing, wrong-layer tests
+- Calls out vague `it` names that won't help the next engineer
+- Surfaces questions for the author; doesn't rewrite
 
 **paine** (simplify):
 
