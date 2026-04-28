@@ -66,3 +66,4 @@ Provide your analysis in this structure:
 - **Recursive/self-referential types** - Tree structures are fine. Deeply nested mapped types reconstructing data shapes are not.
 - **Exposed mutable internals** - If callers can reach internal state and violate invariants, the type has failed.
 - **Invariants enforced only through documentation** - Document the "why," but enforce the constraint in code.
+- Investigate "as" casts. Are they at a legitimate boundary? Is there an opportunity to replace the cast with a guard or discriminated union instead? Keyword here is investigate. Do NOT try and force an unnecessary abstraction. Casts are fine and have legitimate use cases.
