@@ -6,7 +6,7 @@
   },
   "type": "module",
   "scripts": {
-    "init": "./scripts/init.sh",
+    "link-config": "./scripts/link-config.sh",
     "check": "tsc --noEmit",
     "lint": "oxlint --tsconfig tsconfig.json extensions/",
     "lint:fix": "oxlint --tsconfig tsconfig.json --fix extensions/",

@@ -1,8 +1,26 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SELF="$(readlink -f "$0")"
-REPO_DIR="$(cd "$(dirname "$SELF")/.." && pwd)"
+resolve_script_path() {
+  local source="$1"
+  local source_dir
+  local target
+
+  while [ -L "$source" ]; do
+    source_dir="$(cd -P "$(dirname "$source")" >/dev/null 2>&1 && pwd)"
+    target="$(readlink "$source")"
+    case "$target" in
+      /*) source="$target" ;;
+      *) source="$source_dir/$target" ;;
+    esac
+  done
+
+  source_dir="$(cd -P "$(dirname "$source")" >/dev/null 2>&1 && pwd)"
+  printf '%s/%s\n' "$source_dir" "$(basename "$source")"
+}
+
+SELF="$(resolve_script_path "${BASH_SOURCE[0]:-$0}")"
+REPO_DIR="$(cd "$(dirname "$SELF")/.." >/dev/null 2>&1 && pwd)"
 AGENTS_DIR="$REPO_DIR/agents"
 COMMANDS_DIR="$REPO_DIR/commands"
 SKILLS_DIR="$REPO_DIR/skills"
@@ -145,7 +163,7 @@ remove_stale_links() {
     [ -d "$stale_dir" ] || continue
     while IFS= read -r -d '' entry; do
       local resolved
-      resolved=$(readlink -f "$entry" || true)
+      resolved=$(resolve_script_path "$entry" 2>/dev/null || true)
       case "$resolved" in
         "$REPO_DIR"/*)
           rm -f "$entry"
@@ -180,4 +198,4 @@ fi
 
 remove_stale_links
 
-echo "armor init: linked $linked, backed up $backed_up, already current $skipped, removed stale $removed"
+echo "armor config: linked $linked, backed up $backed_up, already current $skipped, removed stale $removed"
