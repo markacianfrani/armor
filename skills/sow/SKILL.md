@@ -64,6 +64,7 @@ npm install -D oxlint oxfmt typescript @j178/prek
 Copy configs from the `references/` folder:
 
 - `references/oxlintrc.json` → `.oxlintrc.json`
+- `references/oxfmtrc.json` → `.oxfmtrc.json`
 - `references/tsconfig.json` → `tsconfig.json`
 
 For tsconfig, adjust `paths` and `baseUrl` based on project structure if needed.
@@ -124,7 +125,19 @@ The oxlint config includes complexity guardrails as warnings with high defaults 
 
 Test files (`__tests__/**`, `*.test.ts`, `*.spec.ts`) are excluded from `max-nested-callbacks`, `max-statements`, and `max-lines-per-function` since `describe`/`it` nesting naturally inflates these.
 
-### 7. Git Hooks with prek
+### 7. Oxfmt Config
+
+The formatter config should include:
+
+- `$schema` for editor validation
+- explicit defaults for the style choices we want to standardize (`printWidth`, semicolons, quotes, trailing commas, line endings)
+- `sortImports: true` so formatting keeps import ordering aligned with linting
+- `sortPackageJson: true` to use Oxfmt's package.json ordering
+- `ignorePatterns` for common generated output directories
+
+Oxfmt also respects `.gitignore`, skips `node_modules` and lockfiles by default, and supports `.prettierignore` for compatibility. Prefer config-level `ignorePatterns` for new projects.
+
+### 8. Git Hooks with prek
 
 Set up [prek](https://github.com/j178/prek) for pre-commit hooks that run linting and formatting on staged files.
 
