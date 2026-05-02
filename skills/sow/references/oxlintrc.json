@@ -28,7 +28,6 @@
     "unicorn/prefer-spread": "error",
     "unicorn/no-useless-spread": "error",
     "unicorn/consistent-function-scoping": "error",
-    "unicorn/no-null": "error",
     "eslint/max-lines": [
       "error",
       {
