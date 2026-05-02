@@ -1,6 +1,7 @@
 ---
 name: layout-shift-qa
-description: Detect unnecessary layout shifts (jank / CLS) in a web UI by instrumenting Chrome with PerformanceObserver while driving real interactions. Use whenever the user asks to check a UI for layout shifts, jank, jumpiness, content shifts, CLS, or Core Web Vitals — phrases like "check for layout shifts", "is it janky", "is anything jumping", "QA the UI", "any CLS issues". Also use proactively as part of any browser-based verification of a UI change: after taking screenshots or driving an interaction in the browser to confirm a feature works, run this pass to confirm the feature doesn't move already-painted content unexpectedly. The check is cheap (≈10 seconds in the same browser session) and catches a class of bug that static reading and casual screenshotting both miss.
+description: >-
+  Detect unnecessary layout shifts (jank / CLS) in a web UI by instrumenting Chrome with PerformanceObserver while driving real interactions. Use whenever the user asks to check a UI for layout shifts, jank, jumpiness, content shifts, CLS, or Core Web Vitals — phrases like "check for layout shifts", "is it janky", "is anything jumping", "QA the UI", "any CLS issues". Also use proactively as part of any browser-based verification of a UI change: after taking screenshots or driving an interaction in the browser to confirm a feature works, run this pass to confirm the feature doesn't move already-painted content unexpectedly. The check is cheap (≈10 seconds in the same browser session) and catches a class of bug that static reading and casual screenshotting both miss.
 allowed-tools: Read, ToolSearch, mcp__chrome-devtools__*
 metadata:
   author: Mark Anthony Cianfrani
