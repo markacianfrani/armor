@@ -13,10 +13,10 @@ Shared coding harness config for:
 - `commands/` — shared command definitions
 - `skills/` — shared skills
 - `extensions/` — pi extensions
-- `scripts/link-config.sh` — config symlink installer
-- `bin/armor` — small CLI wrapper
 
 ## Init
+
+This repo is setup as a light `armor` CLI. 
 
 ```bash
 git clone git@github.com:markacianfrani/armor.git ~/Code/armor
@@ -43,21 +43,38 @@ armor update  # git pull --ff-only + relink shared config
 armor doctor  # print install and repo diagnostics
 ```
 
-## What gets linked
+## Skills
 
-`armor init` and `armor update` link shared config into `~/.agents/`:
+Skills can be installed individually with: 
 
-- `agents/*.md` → `~/.agents/agents/`
-- `commands/*.md` → `~/.agents/commands/`
-- `skills/*` → `~/.agents/skills/`
+`npx skills add https://github.com/markacianfrani/armor`
 
-Pi extensions get linked directly:
+### Code Skills
+- sow - sets your project up with strict linting and guardrails
 
-- `extensions/*.ts` → `~/.pi/agent/extensions/`
+### Documentation Skills
+- diataxis
+- jira
+- docs-triage
 
-Claude also gets direct links:
+### Tool Skills
+- brave-search
+- drawio
+- web-fetch
 
-- `agents/*.md` → `~/.claude/agents/`
-- `commands/*.md` → `~/.claude/commands/`
+### UI Skills
+- component-authoring
+- keyboard-focus-invariants
+- layout-shift-qa
 
-For pi, commands stay in `~/.agents/commands/` and are loaded via prompt-template settings (see `.pi/settings.json`).
+### Design Skills
+- pattern-miner
+
+## Agents
+- Auron - looks at your types
+- Kimahri - looks at your error handling
+- Lulu - looks at your tests
+- Steiner - looks at your REST API
+- Paine - looks at your complexity
+- Mog - looks at your tickets
+- Matoya - looks at another LLM for help
