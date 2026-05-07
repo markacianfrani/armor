@@ -1,7 +1,6 @@
 ---
 description: "Review recent changes using specialized agents"
 argument-hint: "[review-aspects]"
-allowed-tools: ["Bash", "Glob", "Grep", "Read", "Task"]
 ---
 
 # Review Recent Changes
@@ -41,7 +40,7 @@ Review code changes on the current branch using specialized agents, each focusin
 4. **Launch Review Agents**
 
    **Parallel approach** (default):
-   - Launch all applicable agents simultaneously using multiple Task tool calls in a single message
+   - Launch all applicable agents simultaneously in parallel
    - Faster for comprehensive review
    - Results come back together
 
@@ -108,7 +107,7 @@ Review code changes on the current branch using specialized agents, each focusin
 
    ## Next Steps
 
-   1.  Use the `question` tool and present every action item to the user
+   1.  Present every action item to the user for approval
    2.  Fix critical issues first
    3.  Address important issues
    4.  Consider suggestions
