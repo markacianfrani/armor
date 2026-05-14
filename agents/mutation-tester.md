@@ -2,13 +2,6 @@
 description: Mutate one test file's assertions to verify they catch regressions. Receives a file path and diff context from the caller. Inverts assertions and confirms the tests fail.
 name: mutation-tester
 worktree: true
-tools:
-  - Bash
-  - Read
-  - Edit
-  - Grep
-  - Glob
-model: sonnet
 isolation: worktree
 maxTurns: 20
 ---
