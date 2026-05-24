@@ -45,7 +45,15 @@ Five failure modes. Every test should be checked against all of them.
 - If the real integration test should be an eval, why are we writing unit tests instead?
 - Mundane unit tests that don't correspond to a real failure mode anyone would notice?
 
-### 5. Names and readability
+### 5. Flakiness and time-padding
+
+- Any arbitrary timeouts (`sleep`, `waitForTimeout`, `setTimeout`) used to fix flakiness? That's a root-cause dodge.
+- Is the test waiting for actual UI state, network idle, or data readiness — or just hoping 2 seconds is enough?
+- Any retry loops without actionable failure output? A retry that silently passes on the 3rd try hides the real problem.
+- If this test were run on a slow CI machine, would it still pass reliably?
+- Prefer deterministic waits over time-padding. Fix the underlying cause instead of adding more seconds.
+
+### 6. Names and readability
 
 - Does the `it` name describe behavior in present tense, or does it describe the method being called?
 - Is the name vague? `"does the thing correctly"`, `"works as expected"`, `"handles the case"` — these tell the next engineer nothing. The name should describe what *correctly* actually means. `"returns null when the user has no active policy"` beats `"handles missing policy correctly"`.

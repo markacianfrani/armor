@@ -23,7 +23,6 @@ Review code changes on the current branch using specialized agents, each focusin
    - **types** - Analyze type design and invariants (auron)
    - **tests** - Interrogate test quality; flag tautology, over-mocking, framework-testing, vague names (lulu)
    - **simplify** - Simplify code for clarity and maintainability (paine)
-   - **slop** - Remove AI-generated code patterns
    - risk - Identify risky parts of the codebase that may need extra attention
    - **all** - Run all applicable reviews (default)
 
@@ -35,9 +34,17 @@ Review code changes on the current branch using specialized agents, each focusin
    - **If types added/modified**: auron
    - **If test files changed** (`*.spec.*`, `*_spec.rb`, `*_test.*`, `test_*.py`): lulu
    - **Always run last**: paine (polish and refine)
-   - **Always check**: slop patterns
+
 
 4. **Launch Review Agents**
+
+   **Agent Output Format** — each agent must return one of:
+   - `BLOCKING: [issue description and file:line]`
+   - `CLEAN: No issues in this area.`
+
+   `CLEAN` is a valid and expected output. Agents do not need to find problems to be useful. An agent that returns CLEAN is doing its job correctly.
+
+   Do not flood with low-value nits. Prefer a small number of high-conviction findings over a long cosmetic list. If the only findings are rename suggestions or style preferences, return CLEAN instead.
 
    **Parallel approach** (default):
    - Launch all applicable agents simultaneously in parallel
@@ -48,71 +55,50 @@ Review code changes on the current branch using specialized agents, each focusin
    - One agent at a time
    - Easier to understand and act on
 
-5. **Check for AI Slop**
+5. **Identify Risk**
 
-   Scan the diff for:
-   - Extra comments that humans wouldn't add
-   - Defensive try/catch blocks abnormal for the codebase
-   - Casts to `any` to bypass type issues
-   - Style inconsistent with surrounding code
+   - Look at the test changes. Were any tests modified? If so, investigate the changes. Changes to the underlying logic are much more risky than renaming methods.
+   - Present the user with a report of the riskiest changes to review.
 
-   Fix any slop found directly.
+6. **Apply the Approval Bar**
 
-6. **E2E Test Stability**
+   After aggregation, apply this bar. The review **converges** — it is not an open-ended search for more things to fix.
 
-   Scan test changes for:
-   - Arbitrary timeouts (sleep, waitForTimeout, setTimeout) used to fix flakiness
-   - Missing root-cause fixes (awaiting actual UI state, network idle, or data readiness)
-   - Retry loops without actionable failure output
+   **Pass conditions** (all must be true):
+   - No critical issues
+   - No important issues that are structural regressions (spaghetti growth, abstraction leaks, missing decomposition)
+   - No missed opportunities to delete meaningful complexity when a clear path exists
 
-   Prefer deterministic waits and fix underlying causes instead of padding with time.
+   If all three are met → **PASS**. Output:
+   ```
+   ✅ APPROVED — no blocking issues found.
+   ```
 
-7. Identify risk
+   If not → output the action plan below.
 
-- Immediately look at the test changes. Were any tests modified? If so, investigate the changes. Changes to the underlying logic are much more risky than renaming methods.
-- Present the user with a report of the riskiest changes to review.
+   Do NOT downgrade a pass into a "well technically you could…" list. If it passes, it passes. Cosmetic suggestions do not turn a pass into a fail.
 
-8. **Aggregate Results**
-
-   After agents complete, summarize:
-   - **Critical Issues** (must fix)
-   - **Important Issues** (should fix)
-   - **Suggestions** (nice to have)
-   - **Strengths** (what's done well)
-
-9. **Provide Action Plan**
+7. **Provide Action Plan** (only if review does not pass)
 
    ```markdown
    # Review Summary
 
-   ## Critical Issues (X found)
+   ## Blocking Issues
 
    - [agent-name]: Issue description [file:line]
 
-   ## Important Issues (X found)
+   ## Why These Block
 
-   - [agent-name]: Issue description [file:line]
+   - Brief explanation of what regression each issue represents
 
-   ## Suggestions (X found)
-
-   - [agent-name]: Suggestion [file:line]
-
-   ## Slop Removed
-
-   - What AI patterns were cleaned up
-
-   ## Strengths
-
-   - What's well-done in these changes
-
-   ## Next Steps
+   ## Fixes Required
 
    1.  Present every action item to the user for approval
-   2.  Fix critical issues first
-   3.  Address important issues
-   4.  Consider suggestions
-   5.  Re-run review after fixes
+   2.  Fix blocking issues
+   3.  Re-run review to verify
    ```
+
+   Do NOT include a "Suggestions" or "Nice to have" section. Those dilute the signal. If something isn't worth blocking on, it isn't worth listing.
 
 ## Usage Examples:
 
@@ -174,11 +160,3 @@ Review code changes on the current branch using specialized agents, each focusin
 - Improves clarity and readability
 - Applies project standards
 - Preserves functionality
-
-## Tips:
-
-- **Run early**: Before committing, not after
-- **Focus on changes**: Agents analyze git diff by default
-- **Address critical first**: Fix high-priority issues before lower priority
-- **Re-run after fixes**: Verify issues are resolved
-- **Use specific reviews**: Target specific aspects when you know the concern
