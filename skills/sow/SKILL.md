@@ -5,11 +5,14 @@ description: >
   standard tooling to an existing one. Triggers on phrases like "set up this repo",
   "initialize the project", "add linting", "scaffold this", "set up tooling",
   "configure typescript", or "sow".
+metadata:
+  author: Mark Anthony Cianfrani
+  version: "0.2"
 ---
 
 # Sow - TypeScript Project Setup
 
-You help set up TypeScript projects with standardized tooling: oxlint for linting (with type-aware rules), oxfmt for formatting, and strict TypeScript configuration.
+You help set up TypeScript projects with standardized tooling: oxlint for linting, oxfmt for formatting, and strict TypeScript configuration. Type-aware linting is available but off by default — it is an opt-in (see "Type-Aware Linting" below).
 
 ## Dependencies
 
@@ -27,6 +30,7 @@ First, assess the current state:
 1. **Check for package.json** - Does one exist? What package manager lockfiles are present?
 2. **Check for existing linting** - Is there eslint, prettier, biome, or other tooling?
 3. **Check for tsconfig.json** - Does one exist?
+4. **Check for .gitignore** - Does one exist, and does it ignore `node_modules`? oxlint walks the working tree and obeys `.gitignore`. Without `node_modules` ignored, the default lint command hangs trying to lint every dependency.
 
 ## Package Manager
 
@@ -67,7 +71,13 @@ Copy configs from the `references/` folder:
 - `references/oxfmtrc.json` → `.oxfmtrc.json`
 - `references/tsconfig.json` → `tsconfig.json`
 
-For tsconfig, adjust `paths` and `baseUrl` based on project structure if needed.
+For tsconfig, adjust the `@src/*` path mapping to match the project structure. The config has no `baseUrl` — TypeScript 6.0 made it a hard error, so `paths` values are relative (`./src/*`) and resolve from the tsconfig's location.\*
+
+> \* **Version floors.** Relative `paths` without `baseUrl` works on TS 4.1+. This config's real floor is higher: `lib: ["ES2023"]` needs TS 5.0+, and `moduleResolution: nodenext` needs 4.7+. Dropping `baseUrl` did not lower compatibility — the old config already required 5.0+. To support an older TS, lower `lib` (e.g. `ES2022` reaches back to 4.7); the relative `paths` are fine down to 4.1.
+
+### 2a. Ensure a .gitignore
+
+The project **must** have a `.gitignore` that ignores `node_modules` (also ignore build output: `dist/`, `build/`, `coverage/`, and `.env`). oxlint obeys `.gitignore` to decide what to skip. Without `node_modules` ignored, `oxlint` walks the entire dependency tree and hangs. If a `.gitignore` exists, append the missing entries; otherwise create one.
 
 ### 3. Add Package Scripts
 
@@ -95,20 +105,46 @@ If they choose to remove, delete:
 - `.prettierrc*`, `prettier.config.*`
 - Related packages from dependencies
 
-### 5. Type-Aware Linting
+### 5. Type-Aware Linting (opt-in)
 
-oxlint's type-aware rules require the `--tsconfig` flag. This is already included in the lint script:
+Type-aware rules are **off by default** and not in `.oxlintrc.json`. They are powerful but still alpha: they need a second binary (`oxlint-tsgolint`, a Go backend that embeds the TypeScript compiler), are slower, and can use a lot of memory on large repos. Leaving them out keeps the default `lint` honest — every rule in the base config actually runs.
 
-```json
-"lint": "oxlint --tsconfig tsconfig.json"
-```
+The `--tsconfig` flag on the default `lint` script does **not** enable these rules. It only points oxlint's import plugin at the tsconfig for path-alias resolution. Type-aware rules require a separate flag and binary.
 
-This enables rules like:
+To turn type-aware linting on for a project:
 
-- `typescript/no-floating-promises`
-- `typescript/no-misused-promises`
-- `typescript/no-unnecessary-type-assertion`
-- `typescript/no-unnecessary-condition`
+1. Install the backend:
+
+   ```bash
+   <pkg-manager> add -D oxlint-tsgolint
+   ```
+
+2. Add the rules to `.oxlintrc.json`:
+
+   ```json
+   "typescript/no-floating-promises": "error",
+   "typescript/no-misused-promises": "error",
+   "typescript/no-unnecessary-type-assertion": "error",
+   "typescript/no-unnecessary-condition": "error",
+   "typescript/prefer-nullish-coalescing": "error",
+   "typescript/prefer-optional-chain": "error"
+   ```
+
+   `prefer-nullish-coalescing` and `prefer-optional-chain` belong here, not in the base config: both need type information to know whether an operand is nullable, so under plain `oxlint` they silently do nothing.
+
+3. Add `--type-aware` to the existing `lint` script so there is still one lint command, and it's the strong one:
+
+   ```json
+   "lint": "oxlint --tsconfig tsconfig.json --type-aware"
+   ```
+
+   Don't ship a separate `lint:type-aware` script — a second command just means people run the weaker one by reflex and feel covered when they aren't. Make `lint` the full check.
+
+   `--type-aware` turns on the typescript plugin's **whole** type-aware rule set, not only the six you listed. Findings will surface from rules you never wrote down — commonly `typescript/unbound-method` and `typescript/no-redundant-type-constituents`. Decide each per project: fix the code, or set the rule `"off"` with a reason. (Example: `unbound-method` fires on every destructured method, so a codebase whose core pattern is `const { method } = ctx` turns it off rather than fight its own idiom.)
+
+The pre-commit hook can stay syntactic-only (type-aware is too slow for the inner loop). Run the full type-aware `lint` in CI, where it's the real gate. That fast/slow split is local-vs-CI, not two scripts a developer juggles.
+
+Without `oxlint-tsgolint` installed, `--type-aware` fails fast with: `Failed to find tsgolint executable. You may need to add the 'oxlint-tsgolint' package to your project?` — so it never silently no-ops.
 
 ### 6. Complexity Rules
 
@@ -137,29 +173,47 @@ The formatter config should include:
 
 Oxfmt also respects `.gitignore`, skips `node_modules` and lockfiles by default, and supports `.prettierignore` for compatibility. Prefer config-level `ignorePatterns` for new projects.
 
+**oxfmt is pre-1.0 (beta).** Its formatting output can change between minor versions, which surfaces as a large reformatting diff on an otherwise unrelated change. `npm install` saves a caret range (`^0.53.0`), and for a `0.x` version a caret only allows patch bumps — so day-to-day installs are stable. The risk is a deliberate minor bump (`0.53` → `0.54`). When bumping oxfmt, do it in its own commit and run `format` so the reformat is isolated and reviewable. Pin the exact version (`oxfmt@0.53.0`, no caret) if you want zero drift until you choose to move.
+
 ### 8. Git Hooks with prek
 
-Set up [prek](https://github.com/j178/prek) for pre-commit hooks that run linting and formatting on staged files.
+Set up [prek](https://github.com/j178/prek) for a pre-commit hook that runs linting and formatting.
+
+prek reads pre-commit's config schema. Local commands live under a `repo = "local"` entry, and each hook needs `id`, `name`, `language`, and `entry`. The flat `[[hooks]]` shape some docs show does not parse — prek rejects it with `missing field 'repos'`.
 
 Create `prek.toml` in the project root:
 
 ```toml
-[[hooks]]
-id = "oxlint"
-entry = "npx oxlint --tsconfig tsconfig.json"
-types = ["ts", "tsx", "js", "jsx"]
+[[repos]]
+repo = "local"
 
-[[hooks]]
+[[repos.hooks]]
+id = "oxlint"
+name = "oxlint"
+language = "system"
+entry = "npx oxlint --tsconfig tsconfig.json"
+types_or = ["ts", "tsx", "javascript", "jsx"]
+pass_filenames = false
+
+[[repos.hooks]]
 id = "oxfmt"
+name = "oxfmt"
+language = "system"
 entry = "npx oxfmt --check"
-types = ["ts", "tsx", "js", "jsx", "json"]
+types_or = ["ts", "tsx", "javascript", "jsx", "json"]
+pass_filenames = false
 ```
 
-Install the git hooks:
+`language = "system"` runs the command as-is (no managed toolchain), which is what `npx` needs. `pass_filenames = false` lets each tool resolve its own file set rather than having staged paths appended. Use `types_or` (match any) not `types` (match all) — a file is never both `ts` and `tsx`.
+
+Install the git hooks (prek needs a git repo, so run `git init` first if the project isn't one yet):
 
 ```bash
+git init   # only if not already a git repo
 npx prek install
 ```
+
+Note: `prek install` exits 0 and writes `.git/hooks/pre-commit` even when the config is malformed — so a bad config fails silently at commit time, not at install. Verify with `npx prek run --all-files` after installing.
 
 Add a `prepare` script to `package.json` so hooks are installed automatically after `npm install`:
 
@@ -167,9 +221,37 @@ Add a `prepare` script to `package.json` so hooks are installed automatically af
 "prepare": "prek install"
 ```
 
+### 9. Agent Instructions & Dependency Policy
+
+Standardize the repo's agent-instructions file and record the dependency policy. `AGENTS.md` is the canonical file; `CLAUDE.md` is a symlink to it, so both tools read the same source.
+
+Run the helper from the project root:
+
+```bash
+bash <skill-path>/scripts/setup-agents-md.sh
+```
+
+It is idempotent and safe to re-run. It handles every starting state:
+
+- only `CLAUDE.md` → renames it to `AGENTS.md`, links `CLAUDE.md` → `AGENTS.md`
+- only `AGENTS.md` → links `CLAUDE.md` → `AGENTS.md`
+- a reversed or mis-pointed symlink → repoints it
+- both files with **different** content → refuses and asks you to merge by hand (never clobbers)
+
+Then it appends the dependency policy to `AGENTS.md`, once, guarded by a `<!-- sow:dependency-policy -->` marker so re-runs don't duplicate it.
+
+The script doesn't carry that text inline — it appends [`assets/dependency-policy.md`](assets/dependency-policy.md) verbatim. That file is the exact content written to `AGENTS.md`. Read it to see what gets appended; edit it to change the policy. There is one copy, so nothing can drift.
+
 ## Verification
 
-After setup, run:
+On a fresh setup, normalize formatting first — an existing codebase has not been run through oxfmt, so `format:check` would fail on every unformatted file and tell you nothing useful:
+
+```bash
+# Normalize formatting once (writes changes)
+<pkg-manager> run format
+```
+
+Then verify:
 
 ```bash
 # Type check
@@ -178,8 +260,13 @@ After setup, run:
 # Lint
 <pkg-manager> run lint
 
-# Format check
+# Format check (should pass now)
 <pkg-manager> run format:check
 ```
 
-Report any errors to the user - they likely indicate existing code that doesn't meet the stricter standards.
+Read the results by kind, they are not the same signal:
+
+- **`format:check` failures** mean files need formatting. The fix is running `format` — not a code problem. This is why you normalize first.
+- **`check` (tsc) and `lint` failures** are real: existing code that does not meet the stricter type and lint standards. Report these to the user; they may need code changes, not just a reformat.
+
+In CI, run `format:check` (not `format`) so the build fails on unformatted code instead of silently rewriting it.
