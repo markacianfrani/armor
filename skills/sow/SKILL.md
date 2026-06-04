@@ -29,7 +29,7 @@ First, assess the current state:
 
 1. **Check for package.json** - Does one exist? What package manager lockfiles are present?
 2. **Check for existing linting** - Is there eslint, prettier, biome, or other tooling?
-3. **Check for tsconfig.json** - Does one exist?
+3. **Check for tsconfig.json** - Does one exist? If it sets `emitDecoratorMetadata: true`, set `"typescript/consistent-type-imports": "off"` — oxlint's `--fix` rewrites value imports to `import type` and erases the emitted metadata ([typescript-eslint#10200](https://github.com/typescript-eslint/typescript-eslint/issues/10200)).
 4. **Check for .gitignore** - Does one exist, and does it ignore `node_modules`? oxlint walks the working tree and obeys `.gitignore`. Without `node_modules` ignored, the default lint command hangs trying to lint every dependency.
 
 ## Package Manager
