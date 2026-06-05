@@ -102,8 +102,16 @@ function renderLeft(percent: number | null): string {
 // ── Usage rendering (generic, reads from provider extension statuses) ──
 
 interface UsageWindow {
-  usedPercent: number;
+  /** Percentage used (0-100). Required for bar rendering. */
+  usedPercent?: number;
+  /** Unix seconds when the window resets. Optional. */
   resetAt?: number;
+  /**
+   * Text label to render instead of a bar (e.g. "$0.20").
+   * When present and usedPercent is absent, the label is rendered as colored text.
+   * When both are present, the bar is rendered with the label appended.
+   */
+  label?: string;
 }
 
 interface UsageData {
@@ -130,6 +138,26 @@ function formatCountdown(resetAt: number | undefined): string | undefined {
 }
 
 function renderWindow(window: UsageWindow, barWidth: number): string {
+  // Label-only mode (no percentage) — e.g. "$0.20", "∞"
+  if (window.usedPercent === undefined && window.label !== undefined) {
+    return fg(DIM, window.label);
+  }
+
+  // Both bar and label — bar + label
+  if (window.usedPercent !== undefined && window.label !== undefined) {
+    const pct = clampBarPercent(Math.round(window.usedPercent));
+    const color = contextColor(pct);
+    const filled = Math.round((pct / 100) * barWidth);
+    const bar = fg(color, "█".repeat(filled)) + fg(DIM, "░".repeat(barWidth - filled));
+    return bar + fg(DIM, " " + window.label);
+  }
+
+  // Bar-only mode (no label)
+  if (window.usedPercent === undefined) {
+    // Shouldn't happen — label-only case is handled above
+    return "";
+  }
+
   const pct = clampBarPercent(Math.round(window.usedPercent));
   const color = contextColor(pct);
 
@@ -186,18 +214,26 @@ function renderUsageSegment(data: UsageData, maxWidth: number): string {
   return "";
 }
 
-function parseUsageStatus(statuses: ReadonlyMap<string, string>): UsageData | undefined {
-  for (const [key, value] of statuses) {
-    if (!key.startsWith("usage:")) {
-      continue;
-    }
-    try {
-      const data = JSON.parse(value) as UsageData;
-      if (data.windows?.length > 0) {
-        return data;
-      }
-    } catch {}
+function parseUsageStatus(
+  statuses: ReadonlyMap<string, string>,
+  provider: string | undefined,
+): UsageData | undefined {
+  if (!provider) {
+    return undefined;
   }
+
+  const value = statuses.get(`usage:${provider}`);
+  if (!value) {
+    return undefined;
+  }
+
+  try {
+    const data = JSON.parse(value) as UsageData;
+    if (data.windows?.length > 0) {
+      return data;
+    }
+  } catch {}
+
   return undefined;
 }
 
@@ -264,7 +300,7 @@ export default function (pi: ExtensionAPI) {
           const model = ctx.model?.id?.split("/").pop() ?? "?";
           const dir = basename(ctx.cwd);
 
-          const usage = parseUsageStatus(footerData.getExtensionStatuses());
+          const usage = parseUsageStatus(footerData.getExtensionStatuses(), ctx.model?.provider);
 
           const left = renderLeft(percent);
           const leftW = visibleWidth(left);
