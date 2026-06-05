@@ -22,6 +22,7 @@ Dev dependencies to install:
 - `oxfmt`
 - `typescript`
 - `@j178/prek`
+- `knip`
 
 ## Detection Phase
 
@@ -31,6 +32,7 @@ First, assess the current state:
 2. **Check for existing linting** - Is there eslint, prettier, biome, or other tooling?
 3. **Check for tsconfig.json** - Does one exist? If it sets `emitDecoratorMetadata: true`, set `"typescript/consistent-type-imports": "off"` — oxlint's `--fix` rewrites value imports to `import type` and erases the emitted metadata ([typescript-eslint#10200](https://github.com/typescript-eslint/typescript-eslint/issues/10200)).
 4. **Check for .gitignore** - Does one exist, and does it ignore `node_modules`? oxlint walks the working tree and obeys `.gitignore`. Without `node_modules` ignored, the default lint command hangs trying to lint every dependency.
+5. **Check for existing Knip/dead-code tooling** - Look for `knip.json`, `knip.jsonc`, `.knip.json`, `knip.ts`, `package.json#knip`, `depcheck`, `ts-prune`, or similar tools. If Knip already exists, preserve it and tune from findings rather than replacing it.
 
 ## Package Manager
 
@@ -51,16 +53,16 @@ Using the detected package manager:
 
 ```bash
 # bun
-bun add -d oxlint oxfmt typescript @j178/prek
+bun add -d oxlint oxfmt typescript @j178/prek knip
 
 # pnpm
-pnpm add -D oxlint oxfmt typescript @j178/prek
+pnpm add -D oxlint oxfmt typescript @j178/prek knip
 
 # yarn
-yarn add -D oxlint oxfmt typescript @j178/prek
+yarn add -D oxlint oxfmt typescript @j178/prek knip
 
 # npm
-npm install -D oxlint oxfmt typescript @j178/prek
+npm install -D oxlint oxfmt typescript @j178/prek knip
 ```
 
 ### 2. Create/Update Configs
@@ -221,7 +223,43 @@ Add a `prepare` script to `package.json` so hooks are installed automatically af
 "prepare": "prek install"
 ```
 
-### 9. Agent Instructions & Dependency Policy
+### 9. Dead Code & Dependency Hygiene with Knip
+
+Set up [Knip](https://knip.dev) to find unused files, exports, dependencies, unlisted dependencies, unresolved imports, and unused binaries.
+
+Knip is project-graph tooling, so the correct configuration depends on the repo's real entry points, framework conventions, generated files, workspace boundaries, public API surface, scripts, and dynamic imports. Do **not** stamp a large shared Knip config onto every repo. Prefer Knip's defaults first, then tune from actual findings.
+
+The package scripts include:
+
+```json
+"knip": "knip",
+"knip:production": "knip --production"
+```
+
+Do not create a Knip config by default unless the first run shows false positives or missing coverage. If configuration is needed, create `knip.jsonc` with the schema and tune only what the project needs:
+
+```jsonc
+{
+  "$schema": "https://unpkg.com/knip@6/schema-jsonc.json"
+}
+```
+
+Common tuning:
+
+- add missing runtime entry points to `entry`
+- narrow analyzed source files with `project`
+- use `ignoreFiles` for generated files, fixtures, or examples that should not count as unused files
+- use `ignoreDependencies`, `ignoreUnresolved`, or `ignoreIssues` only for known false positives
+- set `includeEntryExports: true` for private apps if unused exports from entry files should be reported
+- usually leave `includeEntryExports` off for public libraries, where entry-file exports are public API
+- rely on package-manager workspace detection before adding explicit `workspaces`
+- prefer real workspace package dependencies over cross-workspace TypeScript path aliases or relative imports
+
+Avoid broad `ignore` patterns. They hide too much. Prefer more specific configuration or better `entry` / `project` coverage.
+
+Do not add Knip to the pre-commit hook. It is a whole-project maintenance check, not a staged-file check. Pre-push or CI enforcement is useful after the initial report is clean or intentionally configured.
+
+### 10. Agent Instructions & Dependency Policy
 
 Standardize the repo's agent-instructions file and record the dependency policy. `AGENTS.md` is the canonical file; `CLAUDE.md` is a symlink to it, so both tools read the same source.
 
@@ -238,7 +276,7 @@ It is idempotent and safe to re-run. It handles every starting state:
 - a reversed or mis-pointed symlink → repoints it
 - both files with **different** content → refuses and asks you to merge by hand (never clobbers)
 
-Then it appends the dependency policy to `AGENTS.md`, once, guarded by a `<!-- sow:dependency-policy -->` marker so re-runs don't duplicate it.
+Then it appends the dependency policy to `AGENTS.md`, once, guarded by a `<!-- sow:dependency-policy -->` marker so re-runs don't duplicate it. The policy also tells future agents to run Knip before handoff when their changes affect the project graph.
 
 The script doesn't carry that text inline — it appends [`assets/dependency-policy.md`](assets/dependency-policy.md) verbatim. That file is the exact content written to `AGENTS.md`. Read it to see what gets appended; edit it to change the policy. There is one copy, so nothing can drift.
 
@@ -262,11 +300,15 @@ Then verify:
 
 # Format check (should pass now)
 <pkg-manager> run format:check
+
+# Dead code and dependency hygiene audit
+<pkg-manager> run knip
 ```
 
 Read the results by kind, they are not the same signal:
 
 - **`format:check` failures** mean files need formatting. The fix is running `format` — not a code problem. This is why you normalize first.
 - **`check` (tsc) and `lint` failures** are real: existing code that does not meet the stricter type and lint standards. Report these to the user; they may need code changes, not just a reformat.
+- **`knip` failures** are project-graph findings. For fresh projects, fix them immediately. For existing projects, classify the findings: fix obvious issues caused by setup, tune precise Knip config for false positives, and ask before deleting unrelated files, removing dependencies, or changing public exports.
 
 In CI, run `format:check` (not `format`) so the build fails on unformatted code instead of silently rewriting it.

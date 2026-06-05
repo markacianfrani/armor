@@ -5,6 +5,8 @@
     "lint:fix": "oxlint --tsconfig tsconfig.json --fix",
     "format": "oxfmt --write .",
     "format:check": "oxfmt --check .",
+    "knip": "knip",
+    "knip:production": "knip --production",
     "prepare": "prek install"
   }
 }
