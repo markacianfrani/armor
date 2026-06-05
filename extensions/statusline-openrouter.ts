@@ -12,8 +12,8 @@
  * no usage bar is published.
  */
 
-import type { ExtensionAPI, ModelRegistry } from "@mariozechner/pi-coding-agent";
 import type { Api, Model } from "@mariozechner/pi-ai";
+import type { ExtensionAPI, ModelRegistry } from "@mariozechner/pi-coding-agent";
 
 type AnyModel = Model<Api>;
 

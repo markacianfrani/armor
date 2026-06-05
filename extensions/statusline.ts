@@ -34,9 +34,10 @@
  * At ≥95% used, the bar is replaced with ⧖ + countdown to resetAt.
  */
 
+import { basename } from "node:path";
+
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { truncateToWidth, visibleWidth } from "@mariozechner/pi-tui";
-import { basename } from "node:path";
 
 // ── ANSI helpers ──
 
