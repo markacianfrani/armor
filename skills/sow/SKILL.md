@@ -217,11 +217,13 @@ npx prek install
 
 Note: `prek install` exits 0 and writes `.git/hooks/pre-commit` even when the config is malformed — so a bad config fails silently at commit time, not at install. Verify with `npx prek run --all-files` after installing.
 
-Add a `prepare` script to `package.json` so hooks are installed automatically after `npm install`:
+Add a `prepare` script so the hook installs automatically after `npm install`:
 
 ```json
-"prepare": "prek install"
+"prepare": "prek install || true"
 ```
+
+The `|| true` keeps Docker builds alive. `prepare` runs on every `npm ci`, but a build context has no `.git` (and `--omit=dev` has no prek binary), so a bare `prek install` would exit non-zero and kill the build. prek has no `HUSKY=0` skip, so this is the guard.
 
 ### 9. Dead Code & Dependency Hygiene with Knip
 

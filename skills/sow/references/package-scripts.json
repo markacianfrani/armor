@@ -7,6 +7,6 @@
     "format:check": "oxfmt --check .",
     "knip": "knip",
     "knip:production": "knip --production",
-    "prepare": "prek install"
+    "prepare": "prek install || true"
   }
 }
