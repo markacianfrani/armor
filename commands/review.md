@@ -35,16 +35,7 @@ Review code changes on the current branch using specialized agents, each focusin
    - **If test files changed** (`*.spec.*`, `*_spec.rb`, `*_test.*`, `test_*.py`): lulu
    - **Always run last**: paine (polish and refine)
 
-
 4. **Launch Review Agents**
-
-   **Agent Output Format** — each agent must return one of:
-   - `BLOCKING: [issue description and file:line]`
-   - `CLEAN: No issues in this area.`
-
-   `CLEAN` is a valid and expected output. Agents do not need to find problems to be useful. An agent that returns CLEAN is doing its job correctly.
-
-   Do not flood with low-value nits. Prefer a small number of high-conviction findings over a long cosmetic list. If the only findings are rename suggestions or style preferences, return CLEAN instead.
 
    **Parallel approach** (default):
    - Launch all applicable agents simultaneously in parallel
@@ -55,50 +46,57 @@ Review code changes on the current branch using specialized agents, each focusin
    - One agent at a time
    - Easier to understand and act on
 
-5. **Identify Risk**
+5. **E2E Test Stability**
 
-   - Look at the test changes. Were any tests modified? If so, investigate the changes. Changes to the underlying logic are much more risky than renaming methods.
-   - Present the user with a report of the riskiest changes to review.
+   Scan test changes for:
+   - Arbitrary timeouts (sleep, waitForTimeout, setTimeout) used to fix flakiness
+   - Missing root-cause fixes (awaiting actual UI state, network idle, or data readiness)
+   - Retry loops without actionable failure output
 
-6. **Apply the Approval Bar**
+   Prefer deterministic waits and fix underlying causes instead of padding with time.
 
-   After aggregation, apply this bar. The review **converges** — it is not an open-ended search for more things to fix.
+6. Identify risk
 
-   **Pass conditions** (all must be true):
-   - No critical issues
-   - No important issues that are structural regressions (spaghetti growth, abstraction leaks, missing decomposition)
-   - No missed opportunities to delete meaningful complexity when a clear path exists
+- Immediately look at the test changes. Were any tests modified? If so, investigate the changes. Changes to the underlying logic are much more risky than renaming methods.
+- Present the user with a report of the riskiest changes to review.
 
-   If all three are met → **PASS**. Output:
-   ```
-   ✅ APPROVED — no blocking issues found.
-   ```
+7. **Aggregate Results**
 
-   If not → output the action plan below.
+   After agents complete, summarize:
+   - **Critical Issues** (must fix)
+   - **Important Issues** (should fix)
+   - **Suggestions** (nice to have)
+   - **Strengths** (what's done well)
 
-   Do NOT downgrade a pass into a "well technically you could…" list. If it passes, it passes. Cosmetic suggestions do not turn a pass into a fail.
-
-7. **Provide Action Plan** (only if review does not pass)
+8. **Provide Action Plan**
 
    ```markdown
    # Review Summary
 
-   ## Blocking Issues
+   ## Critical Issues (X found)
 
    - [agent-name]: Issue description [file:line]
 
-   ## Why These Block
+   ## Important Issues (X found)
 
-   - Brief explanation of what regression each issue represents
+   - [agent-name]: Issue description [file:line]
 
-   ## Fixes Required
+   ## Suggestions (X found)
+
+   - [agent-name]: Suggestion [file:line]
+
+   ## Strengths
+
+   - What's well-done in these changes
+
+   ## Next Steps
 
    1.  Present every action item to the user for approval
-   2.  Fix blocking issues
-   3.  Re-run review to verify
+   2.  Fix critical issues first
+   3.  Address important issues
+   4.  Consider suggestions
+   5.  Re-run review after fixes
    ```
-
-   Do NOT include a "Suggestions" or "Nice to have" section. Those dilute the signal. If something isn't worth blocking on, it isn't worth listing.
 
 ## Usage Examples:
 
@@ -119,9 +117,6 @@ Review code changes on the current branch using specialized agents, each focusin
 
 /review simplify
 # Just simplifies code
-
-/review slop
-# Just removes AI slop patterns
 ```
 
 ## Agent Descriptions:
