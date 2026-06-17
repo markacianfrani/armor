@@ -16,10 +16,10 @@ This skill is self-contained:
 
 - `scripts/export-current.js` detects the current session and writes HTML.
 - `scripts/pi-session.js` and `scripts/claude-session.js` convert raw JSONL transcripts.
-- `scripts/render.js` inlines the viewer into the exported HTML.
-- `assets/ai-components.js`, `assets/viewer.js`, and `assets/session.css` are the bundled UI runtime.
+- `scripts/render.js` writes declarative HTML using the bundled web components.
+- `assets/ai-components.js` and `assets/session.css` are the bundled UI runtime.
 
-The web components are already bundled inside `assets/ai-components.js`; the export does not install or fetch `@cianfrani/ai-ui` at runtime.
+The web components are already bundled inside `assets/ai-components.js`; the export does not install or fetch `@cianfrani/ai-ui` at runtime. The transcript is emitted as readable `<ai-conversation>`, `<ai-message>`, `<ai-markdown>`, and `<ai-tool-call>` HTML instead of a giant JSON data blob.
 
 ## Run
 
