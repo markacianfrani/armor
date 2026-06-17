@@ -13,8 +13,8 @@
  *   …/<parent-uuid>/subagents/agent-<id>.jsonl
  * and carry isSidechain: true.
  */
-import { readFileSync } from "node:fs";
-import { basename } from "node:path";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { basename, dirname, join } from "node:path";
 // ── helpers ──────────────────────────────────────────────────────────
 /** tool_result.content can be a plain string or an array of text blocks. */
 function extractResultText(content) {
@@ -68,42 +68,170 @@ function displayUserText(raw) {
 }
 /** Bookkeeping entry types that are never conversational. */
 function isBookkeeping(type) {
-    return (type === "permission-mode" ||
-        type === "file-history-snapshot" ||
-        type === "system" || // turn_duration, rate-limit, etc.
-        type === "summary"); // compacted context
+    return type === "permission-mode" || type === "file-history-snapshot" || type === "summary"; // compacted context
 }
-function makeState() {
-    return { messages: [], firstUserTitle: "", lastModel: null, sawSidechain: false, seq: 0 };
+const CONTINUATION_PREFIX = "This session is being continued from a previous conversation that ran out of context.";
+function isCompactionContinuationText(text) {
+    return text.trimStart().startsWith(CONTINUATION_PREFIX);
+}
+function extractCompactionSummary(text) {
+    const summaryStart = text.indexOf("Summary:");
+    if (summaryStart < 0) {
+        return text.trim();
+    }
+    let summary = text.slice(summaryStart + "Summary:".length).trim();
+    const tail = summary.indexOf("\nContinue the conversation from where it left off");
+    if (tail >= 0) {
+        summary = summary.slice(0, tail).trim();
+    }
+    return summary;
+}
+function isCompactionCommandText(text) {
+    const clean = cleanClaudeTitle(text);
+    return clean === "/compact" || /Compacted \(ctrl\+o to see full summary\)/.test(text);
+}
+function makeState(subagentsByToolUseId = new Map()) {
+    return {
+        messages: [],
+        firstUserTitle: "",
+        lastModel: null,
+        sawSidechain: false,
+        pendingCompaction: null,
+        subagentsByToolUseId,
+        seq: 0,
+    };
 }
 function nextId(state) {
     return `cc-${state.seq++}`;
 }
-/** Walk leaf → root via parentUuid, then reverse to chronological order. */
-function walkActiveBranch(entries, byId) {
-    // Leaf = last entry (by file order) that carries a uuid. Trailing
-    // bookkeeping lines without a uuid are ignored as walk anchors.
-    let leaf = null;
+function readSubagentMeta(path) {
+    try {
+        return JSON.parse(readFileSync(path, "utf-8"));
+    }
+    catch {
+        return null;
+    }
+}
+function loadSubagentRefs(jsonlPath) {
+    const dir = join(dirname(jsonlPath), basename(jsonlPath, ".jsonl"), "subagents");
+    const out = new Map();
+    if (!existsSync(dir)) {
+        return out;
+    }
+    let names;
+    try {
+        names = readdirSync(dir);
+    }
+    catch {
+        return out;
+    }
+    for (const name of names) {
+        const match = name.match(/^agent-([a-f0-9]+)\.meta\.json$/i);
+        if (!match?.[1]) {
+            continue;
+        }
+        const meta = readSubagentMeta(join(dir, name));
+        if (!meta?.toolUseId) {
+            continue;
+        }
+        const path = join(dir, `agent-${match[1]}.jsonl`);
+        if (!existsSync(path)) {
+            continue;
+        }
+        out.set(meta.toolUseId, { agentId: match[1], meta, path });
+    }
+    return out;
+}
+/** Find the newest entry that can anchor an active-branch walk. */
+function findLeaf(entries) {
     for (let i = entries.length - 1; i >= 0; i--) {
         if (entries[i]?.uuid) {
-            leaf = entries[i] ?? null;
-            break;
+            return entries[i] ?? null;
         }
     }
-    if (!leaf) {
-        return [];
-    }
+    return null;
+}
+function walkToRoot(leaf, byId) {
     const path = [];
     let cur = leaf;
     const guard = new Set();
     while (cur && cur.uuid && !guard.has(cur.uuid)) {
         guard.add(cur.uuid);
         path.push(cur);
-        const pid = cur.parentUuid ?? null;
+        const pid = cur.parentUuid ?? cur.logicalParentUuid ?? null;
         cur = pid ? (byId.get(pid) ?? null) : null;
     }
     path.reverse();
     return path;
+}
+function entryOrder(entries) {
+    return new Map(entries.map((entry, index) => [entry, index]));
+}
+function reachesAncestor(entry, ancestorId, byId, pathIds) {
+    let pid = entry.parentUuid ?? entry.logicalParentUuid ?? null;
+    const seen = new Set();
+    while (pid && !seen.has(pid)) {
+        if (pid === ancestorId) {
+            return true;
+        }
+        if (pathIds.has(pid)) {
+            return false;
+        }
+        seen.add(pid);
+        const parent = byId.get(pid);
+        pid = parent?.parentUuid ?? parent?.logicalParentUuid ?? null;
+    }
+    return false;
+}
+/**
+ * Claude's tree can put concurrent tool results or post-compaction messages on
+ * sibling branches. Splice descendants that happened between two active-branch
+ * nodes back into file order so subagent/tool batches render completely.
+ */
+function injectIntermediateDescendants(path, entries, byId) {
+    const order = entryOrder(entries);
+    const pathIds = new Set(path.map((entry) => entry.uuid).filter((id) => Boolean(id)));
+    const inserted = new Set();
+    const out = [];
+    for (let i = 0; i < path.length; i++) {
+        const current = path[i];
+        if (!current) {
+            continue;
+        }
+        out.push(current);
+        if (!current.uuid) {
+            continue;
+        }
+        const next = path[i + 1];
+        const currentOrder = order.get(current) ?? -1;
+        const nextOrder = next ? (order.get(next) ?? -1) : Infinity;
+        const intermediate = entries
+            .filter((entry) => {
+            if (!entry.uuid || inserted.has(entry.uuid) || pathIds.has(entry.uuid)) {
+                return false;
+            }
+            const entryOrderValue = order.get(entry) ?? -1;
+            return (entryOrderValue > currentOrder &&
+                entryOrderValue < nextOrder &&
+                reachesAncestor(entry, current.uuid, byId, pathIds));
+        })
+            .sort((a, b) => (order.get(a) ?? 0) - (order.get(b) ?? 0));
+        for (const entry of intermediate) {
+            out.push(entry);
+            if (entry.uuid) {
+                inserted.add(entry.uuid);
+            }
+        }
+    }
+    return out;
+}
+/** Walk leaf → root via parentUuid/logicalParentUuid, then reverse to chronological order. */
+function walkActiveBranch(entries, byId) {
+    const leaf = findLeaf(entries);
+    if (!leaf) {
+        return [];
+    }
+    return injectIntermediateDescendants(walkToRoot(leaf, byId), entries, byId);
 }
 /** Build RenderBlocks from an assistant message's content array. */
 function assistantBlocks(content, state) {
@@ -119,12 +247,23 @@ function assistantBlocks(content, state) {
             blocks.push({ type: "redacted_thinking" });
         }
         else if (c.type === "tool_use" && c.name) {
-            blocks.push({
+            const toolUseId = c.id || nextId(state);
+            const block = {
                 type: "tool_use",
                 tool_name: c.name,
                 tool_input: typeof c.input === "string" ? c.input : c.input ? JSON.stringify(c.input) : "{}",
-                tool_use_id: c.id || nextId(state),
-            });
+                tool_use_id: toolUseId,
+            };
+            const subagent = state.subagentsByToolUseId.get(toolUseId);
+            if (subagent && c.name === "Agent") {
+                block.subagent = {
+                    agent_id: subagent.agentId,
+                    name: subagent.meta.name ?? null,
+                    description: subagent.meta.description ?? null,
+                    payload: convertClaudeSession(subagent.path),
+                };
+            }
+            blocks.push(block);
         }
     }
     return blocks;
@@ -135,7 +274,7 @@ function pushTextMessage(entry, text, state) {
     if (!displayText.trim()) {
         return;
     }
-    if (!state.firstUserTitle) {
+    if (!state.firstUserTitle && !isCompactionContinuationText(text)) {
         state.firstUserTitle = cleanClaudeTitle(text) || titleFromText(displayText);
     }
     state.messages.push({
@@ -145,63 +284,117 @@ function pushTextMessage(entry, text, state) {
         blocks: [{ type: "text", text: displayText }],
     });
 }
-/** Process a conversational user/assistant entry. */
+function compactMetadataSummary(entry) {
+    const metadata = entry.compactMetadata;
+    if (!metadata) {
+        return null;
+    }
+    const trigger = metadata["trigger"];
+    const preTokens = metadata["preTokens"];
+    const postTokens = metadata["postTokens"];
+    const parts = [];
+    if (typeof trigger === "string") {
+        parts.push(`trigger: ${trigger}`);
+    }
+    if (typeof preTokens === "number" && typeof postTokens === "number") {
+        parts.push(`tokens: ${preTokens.toLocaleString()} → ${postTokens.toLocaleString()}`);
+    }
+    return parts.length > 0 ? parts.join(" · ") : null;
+}
+function pushCompaction(entry, summary, state) {
+    const metadataSummary = compactMetadataSummary(state.pendingCompaction ?? entry);
+    state.messages.push({
+        id: entry.uuid || nextId(state),
+        role: "assistant",
+        timestamp: entry.timestamp,
+        blocks: [
+            {
+                type: "compaction",
+                text: summary,
+                tool_input: metadataSummary,
+            },
+        ],
+    });
+    state.pendingCompaction = null;
+}
+function processSystem(entry, state) {
+    if (entry.subtype === "compact_boundary") {
+        state.pendingCompaction = entry;
+    }
+}
+/** Fold a user content array into result blocks plus a merged text turn. */
+function emitUserContentArray(entry, content, state) {
+    const resultBlocks = [];
+    let textPieces = "";
+    for (const b of content) {
+        if (b.type === "tool_result") {
+            resultBlocks.push({
+                type: "tool_result",
+                tool_use_id: b.tool_use_id || "",
+                tool_output: extractResultText(b.content),
+            });
+        }
+        else if (b.type === "text" && b.text) {
+            textPieces += (textPieces ? "\n" : "") + b.text;
+        }
+    }
+    if (textPieces.trim()) {
+        pushTextMessage(entry, textPieces, state);
+    }
+    if (resultBlocks.length > 0) {
+        state.messages.push({
+            id: (entry.uuid || nextId(state)) + "-result",
+            role: "user",
+            timestamp: entry.timestamp,
+            blocks: resultBlocks,
+        });
+    }
+}
+/** Handle a user-role entry: compaction artifacts, text, or tool results. */
+function processUserMessage(entry, content, state) {
+    if (typeof content === "string") {
+        if (isCompactionContinuationText(content)) {
+            pushCompaction(entry, extractCompactionSummary(content), state);
+            return;
+        }
+        if (isCompactionCommandText(content)) {
+            return;
+        }
+        pushTextMessage(entry, content, state);
+        return;
+    }
+    if (Array.isArray(content)) {
+        emitUserContentArray(entry, content, state);
+    }
+}
+/** Handle an assistant-role entry: thinking, text, and tool_use blocks. */
+function processAssistantMessage(entry, msg, state) {
+    if (msg.model) {
+        state.lastModel = msg.model;
+    }
+    const blocks = assistantBlocks(Array.isArray(msg.content) ? msg.content : [], state);
+    if (blocks.length === 0) {
+        return;
+    }
+    state.messages.push({
+        id: entry.uuid || nextId(state),
+        role: "assistant",
+        timestamp: entry.timestamp,
+        model: msg.model || null,
+        blocks,
+    });
+}
+/** Dispatch a conversational user/assistant entry (plus compaction artifacts). */
 function processMessage(entry, state) {
     const msg = entry.message;
     if (!msg) {
         return;
     }
-    const content = msg.content;
     if (msg.role === "user") {
-        // A user turn is either plain text or an array of blocks.
-        if (Array.isArray(content)) {
-            // tool_result blocks become paired result blocks; text becomes a turn.
-            const resultBlocks = [];
-            let textPieces = "";
-            for (const b of content) {
-                if (b.type === "tool_result") {
-                    resultBlocks.push({
-                        type: "tool_result",
-                        tool_use_id: b.tool_use_id || "",
-                        tool_output: extractResultText(b.content),
-                    });
-                }
-                else if (b.type === "text" && b.text) {
-                    textPieces += (textPieces ? "\n" : "") + b.text;
-                }
-            }
-            if (textPieces.trim()) {
-                pushTextMessage(entry, textPieces, state);
-            }
-            if (resultBlocks.length > 0) {
-                state.messages.push({
-                    id: (entry.uuid || nextId(state)) + "-result",
-                    role: "user",
-                    timestamp: entry.timestamp,
-                    blocks: resultBlocks,
-                });
-            }
-        }
-        else if (typeof content === "string") {
-            pushTextMessage(entry, content, state);
-        }
-        return;
+        processUserMessage(entry, msg.content, state);
     }
-    if (msg.role === "assistant") {
-        if (msg.model) {
-            state.lastModel = msg.model;
-        }
-        const blocks = assistantBlocks(Array.isArray(content) ? content : [], state);
-        if (blocks.length === 0) {
-            return;
-        }
-        state.messages.push({
-            id: entry.uuid || nextId(state),
-            role: "assistant",
-            timestamp: entry.timestamp,
-            model: msg.model || null,
-            blocks,
-        });
+    else if (msg.role === "assistant") {
+        processAssistantMessage(entry, msg, state);
     }
 }
 /**
@@ -271,10 +464,14 @@ export function convertClaudeSession(jsonlPath) {
         throw new Error(`No entries found in ${jsonlPath}`);
     }
     const path = walkActiveBranch(entries, byId);
-    const state = makeState();
+    const state = makeState(loadSubagentRefs(jsonlPath));
     for (const entry of path) {
         if (entry.isSidechain) {
             state.sawSidechain = true;
+        }
+        if (entry.type === "system") {
+            processSystem(entry, state);
+            continue;
         }
         if (entry.isMeta || isBookkeeping(entry.type)) {
             continue;

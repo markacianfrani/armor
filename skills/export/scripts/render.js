@@ -71,37 +71,57 @@ function looksLikeError(output, toolName) {
         firstLines.includes("enoent") ||
         (firstLines.includes("not found") && firstLines.includes("error")));
 }
+/** Truncate to fit, keeping the head and appending an ellipsis. */
+function clipHead(value, max) {
+    return value.length > max ? `${value.slice(0, max - 3)}…` : value;
+}
+/** Truncate to fit, keeping the tail and prefixing an ellipsis. */
+function clipTail(value, max) {
+    return value.length > max ? `…${value.slice(-(max - 5))}` : value;
+}
+/** Pull a headline out of a parsed tool_use input (Agent label or file path). */
+function summarizeParsedToolUse(name, parsed) {
+    const agentLabel = parsed["name"] ?? parsed["description"] ?? parsed["prompt"];
+    if (name === "Agent" && typeof agentLabel === "string" && agentLabel) {
+        return clipHead(agentLabel, 80);
+    }
+    const path = parsed["path"] ?? parsed["file_path"] ?? parsed["filePath"];
+    if (typeof path === "string" && path) {
+        return clipTail(path, 60);
+    }
+    return null;
+}
+/** Fall back to regex/line summaries when the input isn't usable JSON. */
+function summarizeRawToolUse(input) {
+    const filePathMatch = input.match(/["']([/~][^"']+)["']/);
+    if (filePathMatch?.[1]) {
+        return clipTail(filePathMatch[1], 60);
+    }
+    const cmdMatch = input.match(/"command"\s*:\s*"([^"]+)"/);
+    if (cmdMatch?.[1]) {
+        return clipHead(cmdMatch[1], 80);
+    }
+    const firstLine = input
+        .split("\n")
+        .find((l) => l.trim() && !l.trim().startsWith("{") && !l.trim().startsWith('"')) ?? "";
+    return firstLine ? clipHead(firstLine, 80) : null;
+}
+// Summaries cover several tool-specific affordances (Agent, files, shell).
 function summarizeToolUse(name, input) {
     if (!input) {
         return name;
     }
     try {
         const parsed = JSON.parse(input);
-        const path = parsed["path"] ?? parsed["file_path"] ?? parsed["filePath"];
-        if (typeof path === "string" && path) {
-            return path.length > 60 ? `…${path.slice(-55)}` : path;
+        const fromParsed = summarizeParsedToolUse(name, parsed);
+        if (fromParsed) {
+            return fromParsed;
         }
     }
     catch {
         // Fall through to regex/line based summaries.
     }
-    const filePathMatch = input.match(/["']([/~][^"']+)["']/);
-    if (filePathMatch?.[1]) {
-        const path = filePathMatch[1];
-        return path.length > 60 ? `…${path.slice(-55)}` : path;
-    }
-    const cmdMatch = input.match(/"command"\s*:\s*"([^"]+)"/);
-    if (cmdMatch?.[1]) {
-        const cmd = cmdMatch[1];
-        return cmd.length > 80 ? `${cmd.slice(0, 77)}…` : cmd;
-    }
-    const firstLine = input
-        .split("\n")
-        .find((l) => l.trim() && !l.trim().startsWith("{") && !l.trim().startsWith('"')) ?? "";
-    if (firstLine.length > 80) {
-        return `${firstLine.slice(0, 77)}…`;
-    }
-    return firstLine || name;
+    return summarizeRawToolUse(input) ?? name;
 }
 function formatToolInput(toolName, rawInput) {
     if (!rawInput) {
@@ -109,6 +129,24 @@ function formatToolInput(toolName, rawInput) {
     }
     try {
         const parsed = JSON.parse(rawInput);
+        if (toolName === "Agent") {
+            const description = parsed["description"];
+            const prompt = parsed["prompt"];
+            const name = parsed["name"];
+            const lines = [];
+            if (typeof name === "string") {
+                lines.push(`name: ${name}`);
+            }
+            if (typeof description === "string") {
+                lines.push(`description: ${description}`);
+            }
+            if (typeof prompt === "string") {
+                lines.push(`prompt: ${prompt}`);
+            }
+            if (lines.length > 0) {
+                return lines.join("\n");
+            }
+        }
         if (typeof parsed["command"] === "string") {
             return parsed["command"];
         }
@@ -187,8 +225,51 @@ function buildConversation(rawMessages) {
     }
     return turns;
 }
-// Rendering covers the small union of block types from devlog content_blocks.
-// eslint-disable-next-line complexity
+function renderConversation(messages, density = "comfortable") {
+    let html = `<ai-conversation density="${density}">`;
+    for (const msg of buildConversation(messages)) {
+        html += `<ai-message role="${msg.role}" label="${msg.label}">`;
+        for (const block of msg.blocks) {
+            html += renderBlock(block);
+        }
+        html += "</ai-message>";
+    }
+    return `${html}</ai-conversation>`;
+}
+function renderSubagent(subagent) {
+    const title = subagent.name || subagent.description || `agent-${subagent.agent_id.slice(0, 8)}`;
+    const meta = [subagent.agent_id, subagent.payload.meta.model].filter(Boolean).join(" · ");
+    return ('<ai-event class="subagent-transcript" kind="custom" severity="info" source="subagent">' +
+        `<span slot="summary">Subagent: ${esc(title)}</span>` +
+        (meta ? `<span slot="meta">${esc(meta)}</span>` : "") +
+        renderConversation(subagent.payload.messages, "compact") +
+        "</ai-event>");
+}
+function renderToolUseBlock(block) {
+    const toolName = block.tool_name || "unknown";
+    const result = block.pairedResult;
+    const resultOutput = result?.tool_output || "";
+    const resultIsError = result ? looksLikeError(resultOutput, toolName) : false;
+    const status = resultIsError ? "error" : "success";
+    const open = resultIsError ? " open" : "";
+    let html = `<ai-tool-call name="${escAttr(toolName)}" label="${escAttr(toolName)}" ` +
+        `headline="${escAttr(summarizeToolUse(toolName, block.tool_input))}" status="${status}"${open}>`;
+    if (block.tool_input?.trim()) {
+        const isBash = ["bash", "shell"].includes(toolName.toLowerCase());
+        if (!isBash) {
+            html += `<pre slot="input" class="tool-input-pre"><code>${esc(formatToolInput(toolName, block.tool_input))}</code></pre>`;
+        }
+    }
+    if (resultOutput) {
+        html += `<ai-tool-result content="${escAttr(resultOutput)}" status="${status}"></ai-tool-result>`;
+    }
+    if (block.subagent) {
+        html += renderSubagent(block.subagent);
+    }
+    return `${html}</ai-tool-call>`;
+}
+// Rendering covers the small union of block types from devlog content_blocks,
+// plus export-only compaction/subagent affordances.
 function renderBlock(block) {
     switch (block.type) {
         case "text": {
@@ -199,30 +280,19 @@ function renderBlock(block) {
             return `<ai-thinking source="model" content="${escAttr(block.text ?? "")}"></ai-thinking>`;
         case "redacted_thinking":
             return "<ai-thinking redacted></ai-thinking>";
-        case "tool_use": {
-            const toolName = block.tool_name || "unknown";
-            const result = block.pairedResult;
-            const resultOutput = result?.tool_output || "";
-            const resultIsError = result ? looksLikeError(resultOutput, toolName) : false;
-            const status = resultIsError ? "error" : "success";
-            const open = resultIsError ? " open" : "";
-            let html = `<ai-tool-call name="${escAttr(toolName)}" label="${escAttr(toolName)}" ` +
-                `headline="${escAttr(summarizeToolUse(toolName, block.tool_input))}" status="${status}"${open}>`;
-            if (block.tool_input?.trim()) {
-                const isBash = ["bash", "shell"].includes(toolName.toLowerCase());
-                if (!isBash) {
-                    html += `<pre slot="input" class="tool-input-pre"><code>${esc(formatToolInput(toolName, block.tool_input))}</code></pre>`;
-                }
-            }
-            if (resultOutput) {
-                html += `<ai-tool-result content="${escAttr(resultOutput)}" status="${status}"></ai-tool-result>`;
-            }
-            return `${html}</ai-tool-call>`;
-        }
+        case "tool_use":
+            return renderToolUseBlock(block);
         case "tool_result": {
             const output = block.tool_output || "";
             const status = looksLikeError(output, block.tool_name || "") ? "error" : "success";
             return `<ai-tool-result content="${escAttr(output)}" status="${status}"></ai-tool-result>`;
+        }
+        case "compaction": {
+            const meta = block.tool_input ? `<span slot="meta">${esc(block.tool_input)}</span>` : "";
+            return ('<ai-event class="compaction-event" kind="checkpoint" severity="info" source="claude">' +
+                '<span slot="summary">Conversation compacted</span>' +
+                meta +
+                `<ai-markdown content="${escAttr(block.text || "")}"></ai-markdown></ai-event>`);
         }
         default:
             return block.text ? `<ai-markdown content="${escAttr(block.text)}"></ai-markdown>` : "";
@@ -231,7 +301,6 @@ function renderBlock(block) {
 function renderSessionBody(payload) {
     const meta = payload.meta;
     const sessionId = meta.session_id || "";
-    const conversation = buildConversation(payload.messages);
     let html = '<div class="session-viewer">';
     html += '<div class="session-meta-bar">';
     html += `<span class="session-title">${esc(meta.title || sessionId.slice(0, 16))}</span>`;
@@ -268,15 +337,8 @@ function renderSessionBody(payload) {
         }
         html += "</div>";
     }
-    html += '<ai-conversation density="comfortable">';
-    for (const msg of conversation) {
-        html += `<ai-message role="${msg.role}" label="${msg.label}">`;
-        for (const block of msg.blocks) {
-            html += renderBlock(block);
-        }
-        html += "</ai-message>";
-    }
-    html += "</ai-conversation></div>";
+    html += renderConversation(payload.messages);
+    html += "</div>";
     return html;
 }
 function markdownWhitespacePatch() {

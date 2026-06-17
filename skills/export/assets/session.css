@@ -712,6 +712,22 @@ ai-tool-result {
   font-family: var(--font-family-ui);
 }
 
+ai-event.compaction-event,
+ai-event.subagent-transcript {
+  --ai-event-background-color: color-mix(in srgb, var(--accent) 5%, transparent);
+  --ai-event-border-color: var(--border);
+  --ai-event-border-radius: var(--radius);
+  --ai-event-border-width: 1px;
+  --ai-event-content-gap: 10px;
+  display: block;
+  margin: 14px 0;
+}
+
+ai-event.subagent-transcript {
+  --ai-event-background-color: color-mix(in srgb, var(--base-500) 5%, transparent);
+  --ai-conversation-compact-gap: 8px;
+}
+
 /* ensure deep nested code in tool calls scrolls */
 .tool-input-pre {
   color: var(--base-700);

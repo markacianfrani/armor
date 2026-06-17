@@ -22,7 +22,6 @@ No devlog index is required.`);
     process.exit(1);
 }
 // CLI flag parsing is deliberately kept dependency-free.
-// eslint-disable-next-line complexity
 function parseArgs(argv) {
     const opts = {
         cwd: process.cwd(),
@@ -32,42 +31,46 @@ function parseArgs(argv) {
         session: null,
         settleMs: 250,
     };
-    for (let i = 0; i < argv.length; i++) {
-        const a = argv[i];
-        if (a === "--out" || a === "-o") {
-            opts.out = argv[++i] ?? null;
-            if (!opts.out) {
+    const setOut = (value) => {
+        opts.out = value ?? null;
+        if (!opts.out) {
+            usage();
+        }
+    };
+    const stringFlags = {
+        "--out": setOut,
+        "-o": setOut,
+        "--source": (value) => {
+            if (value !== "pi" && value !== "claude" && value !== "auto") {
                 usage();
             }
-        }
-        else if (a === "--open") {
-            opts.open = true;
-        }
-        else if (a === "--source") {
-            const src = argv[++i];
-            if (src !== "pi" && src !== "claude" && src !== "auto") {
+            opts.source = value;
+        },
+        "--cwd": (value) => {
+            if (!value) {
                 usage();
             }
-            opts.source = src;
-        }
-        else if (a === "--cwd") {
-            const cwd = argv[++i];
-            if (!cwd) {
-                usage();
-            }
-            opts.cwd = resolve(cwd);
-        }
-        else if (a === "--session") {
-            opts.session = argv[++i] ?? null;
+            opts.cwd = resolve(value);
+        },
+        "--session": (value) => {
+            opts.session = value ?? null;
             if (!opts.session) {
                 usage();
             }
+        },
+        "--settle-ms": (value) => {
+            opts.settleMs = Math.max(0, Number(value) || 0);
+        },
+    };
+    for (let i = 0; i < argv.length; i++) {
+        const flag = argv[i];
+        const handler = flag ? stringFlags[flag] : undefined;
+        if (handler) {
+            handler(argv[++i]);
+            continue;
         }
-        else if (a === "--settle-ms") {
-            opts.settleMs = Math.max(0, Number(argv[++i]) || 0);
-        }
-        else if (a === "--help" || a === "-h") {
-            usage();
+        if (flag === "--open") {
+            opts.open = true;
         }
         else {
             usage();
@@ -110,8 +113,42 @@ function* walkJsonl(root) {
         }
     }
 }
+/** Classify one JSONL header line, harvesting source/cwd/sessionId if present. */
+function classifyHeaderEntry(entry) {
+    if (entry.type === "session") {
+        return {
+            source: "pi",
+            cwd: typeof entry.cwd === "string" ? entry.cwd : null,
+            sessionId: typeof entry.id === "string" ? entry.id : null,
+        };
+    }
+    if (entry.sessionId !== undefined ||
+        entry.parentUuid !== undefined ||
+        entry.isSidechain !== undefined) {
+        return {
+            source: "claude",
+            cwd: typeof entry.cwd === "string" ? entry.cwd : null,
+            sessionId: typeof entry.sessionId === "string" ? entry.sessionId : null,
+        };
+    }
+    return { source: null, cwd: null, sessionId: null };
+}
+/** Guess the harness from the file's location when the header is silent. */
+function inferSourceFromPath(path) {
+    if (path.includes("/.claude/")) {
+        return "claude";
+    }
+    if (path.includes("/.pi/")) {
+        return "pi";
+    }
+    return null;
+}
+/** Pull a UUID-shaped session id out of the file basename. */
+function extractSessionIdFromName(path) {
+    const m = basename(path).match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
+    return m?.[0] ?? null;
+}
 // Session JSONL headers differ across harnesses, so this has a few format branches.
-// eslint-disable-next-line complexity
 function peek(path) {
     let source = null;
     let cwd = null;
@@ -123,17 +160,15 @@ function peek(path) {
                 continue;
             }
             const e = JSON.parse(line);
-            if (e.type === "session") {
-                source = "pi";
-                cwd = typeof e.cwd === "string" ? e.cwd : cwd;
-                sessionId = typeof e.id === "string" ? e.id : sessionId;
+            const classified = classifyHeaderEntry(e);
+            if (classified.source) {
+                source = classified.source;
             }
-            else if (e.sessionId !== undefined ||
-                e.parentUuid !== undefined ||
-                e.isSidechain !== undefined) {
-                source = "claude";
-                cwd = typeof e.cwd === "string" ? e.cwd : cwd;
-                sessionId = typeof e.sessionId === "string" ? e.sessionId : sessionId;
+            if (classified.cwd) {
+                cwd = classified.cwd;
+            }
+            if (classified.sessionId) {
+                sessionId = classified.sessionId;
             }
             if (source && cwd && sessionId) {
                 break;
@@ -143,16 +178,11 @@ function peek(path) {
     catch {
         return null;
     }
-    if (!source) {
-        source = path.includes("/.claude/") ? "claude" : path.includes("/.pi/") ? "pi" : null;
-    }
+    source ??= inferSourceFromPath(path);
     if (!source) {
         return null;
     }
-    if (!sessionId) {
-        const m = basename(path).match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
-        sessionId = m?.[0] ?? null;
-    }
+    sessionId ??= extractSessionIdFromName(path);
     return { source, cwd: cwd ? resolve(cwd) : null, sessionId };
 }
 function scanCandidates() {
