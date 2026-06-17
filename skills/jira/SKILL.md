@@ -35,6 +35,8 @@ If not installed or authenticated, direct the user to:
 
 ## Creating Tickets
 
+Always put a ticket under an appropriate Initiative. If there are no existing initiatives that make sense, stop and ask the user.
+
 Use `--from-json` with ADF (Atlassian Document Format) for proper formatting:
 
 ```bash

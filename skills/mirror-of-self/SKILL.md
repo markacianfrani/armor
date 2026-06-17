@@ -3,8 +3,7 @@ name: mirror-of-self
 description: >
   Break a tie between two implementations that both work. A forced pairwise
   comparison: ask which one you would rather maintain, not which one is cleverer.
-  Use when stuck
-  between two designs, APIs, names, schemas, or refactors that both pass tests
+  Use when stuck between two designs, APIs, names, schemas, or refactors that both pass tests
   and abstract criteria cannot separate. Triggers on "which approach", "can't
   decide between", "option A or B", "break this tie", "help me choose between
   two implementations".
@@ -27,8 +26,6 @@ is not which option is more elegant. It is which one you would rather inhabit.
 
 Two options. Both correct. Both pass the tests. The spec does not pick one. You
 have been staring at them for ten minutes.
-
-That is the moment. Not before.
 
 ## When not to use it
 

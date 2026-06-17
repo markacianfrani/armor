@@ -6,8 +6,7 @@ description: >
   stranger's eye lands in the first five seconds, whether it lands on the right
   thing, and what repels. Based on a simple gate: if a thing repels you in the
   first seconds, nothing later redeems it. Use when reviewing or improving DX
-  surfaces, docs, error messages,
-  or API readability. Triggers on "is this readable", "review this README",
+  surfaces, docs, error messages, or API readability. Triggers on "is this readable", "review this README",
   "first impression", "does this API make sense", "DX review", "review this error
   message".
 metadata:

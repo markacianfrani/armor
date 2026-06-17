@@ -5,8 +5,7 @@ description: >
   choices, premature abstraction, and indirection that serves the author instead
   of the reader. Asks one question of every choice: who does this serve? Empathy
   over ego: ego-driven work never produces something humane. Use when reviewing a
-  diff or PR,
-  especially a clever or trendy one. Triggers on "review this", "is this
+  diff or PR, especially a clever or trendy one. Triggers on "review this", "is this
   over-engineered", "too clever", "code review", "is this abstraction worth it".
 metadata:
   author: Mark Anthony Cianfrani
