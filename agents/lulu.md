@@ -61,6 +61,12 @@ Five failure modes. Every test should be checked against all of them.
 - Is the `describe` block tied to a class/method a reader can find?
 - Is each `it` tight (arrange / act / assert), or is logic smeared across shared setup?
 
+### 7. Brittle assertions on incidental output
+
+- Does the test pin the exact wording of an error message or log line? A copy-edit to that string breaks the test without any behavior changing. Assert on the error *type*, a stable error code, or the raised exception class instead.
+- Same question for timestamps, generated IDs, the ordering of an unordered collection, or full-object equality where only one field carries the behavior — is the test coupled to detail that isn't what's under test?
+- Ask: if someone reworded this message or added a field to this object, *should* this test go red? If not, it's asserting on too much.
+
 ## Output format
 
 ```
@@ -79,7 +85,7 @@ For every test in scope, rank it 1 (most valuable) to N (least) and justify in o
 
 For each issue, cite the specific test and the specific failure mode.
 
-- **[Over-mocking | Tautology | Framework test | Wrong layer | Vague name]** in `test name` (file:line)
+- **[Over-mocking | Tautology | Framework test | Wrong layer | Vague name | Brittle assertion]** in `test name` (file:line)
   - What's wrong: [one sentence]
   - Question to resolve: [the question that drives the discussion]
 
