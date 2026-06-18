@@ -11,13 +11,18 @@
  * (unlike OpenRouter's GET /api/v1/key), so we accumulate client-side from
  * the per-turn usage that pi-ai already computes from our model pricing.
  *
+ * Native web search: LLM Gateway exposes a server-executed `web_search` tool
+ * (declared as `{ type: "web_search" }` in the OpenAI `tools` array). It is
+ * only available on select models — we discover the per-model capability
+ * during model discovery (see `discoverModels`) and gate injection by it.
+ *
+ * Use `/llmgateway-search on` to enable web search for the current session,
+ * `/llmgateway-search off` to disable. Off by default (each search costs
+ * $0.01–$0.025 per call on top of token costs).
+ *
  * Auth:
  *   export LLM_GATEWAY_API_KEY=...
- * or run:
- *   /login llmgateway
- *
- * Note: pi's built-in /login command has no provider argument. This extension
- * registers /login llmgateway as an extension command for the common shortcut.
+ * or run `/login` and pick LLM Gateway under "Use an API key".
  *
  * Optional:
  *   export LLM_GATEWAY_BASE_URL=https://api.llmgateway.io/v1
@@ -27,7 +32,7 @@ import { readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
-import type { AssistantMessage, OAuthCredentials, OAuthLoginCallbacks } from "@mariozechner/pi-ai";
+import type { AssistantMessage } from "@mariozechner/pi-ai";
 import type { ExtensionAPI, ProviderModelConfig } from "@mariozechner/pi-coding-agent";
 
 const PROVIDER = "llmgateway";
@@ -39,6 +44,7 @@ const AUTH_PATH = join(homedir(), ".pi", "agent", "auth.json");
 const X_SOURCE = "pi-agent";
 const MODEL_DISCOVERY_TIMEOUT_MS = 8_000;
 const STATUS_KEY = `usage:${PROVIDER}`;
+const WEB_SEARCH_TOOL_TYPE = "web_search";
 
 interface LlmGatewayModelsResponse {
   data?: LlmGatewayModel[];
@@ -53,12 +59,14 @@ interface LlmGatewayModel {
   providers?: Array<{
     reasoning?: unknown;
     vision?: unknown;
+    tools?: unknown;
   }>;
   pricing?: {
     prompt?: unknown;
     completion?: unknown;
     input_cache_read?: unknown;
     input_cache_write?: unknown;
+    web_search?: unknown;
   };
   context_length?: unknown;
   per_request_limits?: Record<string, unknown>;
@@ -72,6 +80,14 @@ interface StoredAuthEntry {
   key?: unknown;
   access?: unknown;
 }
+
+/**
+ * Model ids that LLM Gateway reports as having native web search support.
+ * Populated during `discoverModels()`; checked at request time to gate
+ * `web_search` injection. Models not in this set will reject the tool with
+ * a 400 from LLM Gateway, so we never inject blindly.
+ */
+const webSearchCapableModels = new Set<string>();
 
 const FALLBACK_MODELS: ProviderModelConfig[] = [
   {
@@ -144,11 +160,44 @@ async function discoverModels(): Promise<ProviderModelConfig[]> {
     }
 
     const json = (await res.json()) as LlmGatewayModelsResponse;
-    const models = (json.data ?? []).map(toProviderModel).filter(isProviderModelConfig);
+    const raw = json.data ?? [];
+
+    // Build the web-search capability set first, before mapping to the
+    // pi-ai ProviderModelConfig shape (which has no place to carry it).
+    webSearchCapableModels.clear();
+    for (const model of raw) {
+      if (supportsWebSearch(model)) {
+        webSearchCapableModels.add(model.id as string);
+      }
+    }
+
+    const models = raw.map(toProviderModel).filter(isProviderModelConfig);
     return models.length > 0 ? models : FALLBACK_MODELS;
   } catch {
     return FALLBACK_MODELS;
   }
+}
+
+function supportsWebSearch(model: LlmGatewayModel): boolean {
+  // LLM Gateway sets `pricing.web_search` (a per-call rate) on models with
+  // native web search support. Some dedicated search models may not have
+  // a web_search price but still accept the tool — fall back to checking
+  // that at least one provider supports tools and the model has a non-zero
+  // `supported_parameters` list including "tools".
+  if (typeof model.pricing?.web_search === "string") {
+    const rate = Number(model.pricing.web_search);
+    if (Number.isFinite(rate) && rate > 0) {
+      return true;
+    }
+  }
+  const providers = model.providers;
+  const params = model.supported_parameters;
+  return (
+    Array.isArray(providers) &&
+    providers.some((provider) => provider.tools === true) &&
+    Array.isArray(params) &&
+    params.includes("tools")
+  );
 }
 
 function isProviderModelConfig(model: ProviderModelConfig | null): model is ProviderModelConfig {
@@ -237,10 +286,6 @@ function parseMaxTokens(limits: Record<string, unknown> | undefined): number | u
   return undefined;
 }
 
-function tenYearsFromNow(): number {
-  return Date.now() + 10 * 365 * 24 * 60 * 60 * 1000;
-}
-
 // ── Statusline cost tracker ──
 //
 // Sums `usage.cost.total` from each llmgateway assistant message and
@@ -249,12 +294,22 @@ function tenYearsFromNow(): number {
 // The statusline renders label-only windows as plain dim text (see
 // statusline.ts -> renderWindow), so the running cost shows as e.g.
 // " $0.42 " next to the model name without a bar.
+//
+// When web search is enabled for the session, the search indicator is
+// published as a second window so the user can see the toggle state in
+// the same statusline slot — no statusline.ts changes required.
 
 class CostTracker {
   private total = 0;
   private active = false;
+  private searchEnabled = false;
 
-  constructor(private publish: (json: string | undefined) => void) {}
+  constructor(private ctx: { ui: { setStatus: (k: string, v: string | undefined) => void } }) {}
+
+  setSearchEnabled(enabled: boolean): void {
+    this.searchEnabled = enabled;
+    this.refresh();
+  }
 
   activate(): void {
     if (this.active) {
@@ -271,7 +326,7 @@ class CostTracker {
     }
     this.active = false;
     this.total = 0;
-    this.publish(undefined);
+    this.ctx.ui.setStatus(STATUS_KEY, undefined);
   }
 
   dispose(): void {
@@ -290,21 +345,20 @@ class CostTracker {
     this.publishCost();
   }
 
+  /** Re-publish the current state. Call after toggling search. */
+  refresh(): void {
+    if (this.active) {
+      this.publishCost();
+    }
+  }
+
   private publishCost(): void {
-    this.publish(JSON.stringify({ windows: [{ label: `$${this.total.toFixed(2)}` }] }));
+    const windows: Array<{ label: string }> = [{ label: `$${this.total.toFixed(2)}` }];
+    if (this.searchEnabled) {
+      windows.push({ label: "search" });
+    }
+    this.ctx.ui.setStatus(STATUS_KEY, JSON.stringify({ windows }));
   }
-}
-
-async function login(callbacks: OAuthLoginCallbacks): Promise<OAuthCredentials> {
-  const key = (await callbacks.onPrompt({ message: "Paste your LLM Gateway API key:" })).trim();
-  if (!key) {
-    throw new Error("No LLM Gateway API key provided");
-  }
-  return { refresh: key, access: key, expires: tenYearsFromNow() };
-}
-
-async function refreshToken(credentials: OAuthCredentials): Promise<OAuthCredentials> {
-  return { ...credentials, expires: tenYearsFromNow() };
 }
 
 function register(pi: ExtensionAPI, models: ProviderModelConfig[]): void {
@@ -317,12 +371,6 @@ function register(pi: ExtensionAPI, models: ProviderModelConfig[]): void {
       "x-source": X_SOURCE,
     },
     models,
-    oauth: {
-      name: "LLM Gateway API Key",
-      login,
-      refreshToken,
-      getApiKey: (credentials) => credentials.access,
-    },
   });
 }
 
@@ -336,9 +384,10 @@ export default async function (pi: ExtensionAPI) {
   register(pi, await discoverModels());
 
   let costTracker: CostTracker | undefined;
+  let searchEnabled = false;
 
   pi.on("session_start", (_event, ctx) => {
-    costTracker = new CostTracker((json) => ctx.ui.setStatus(STATUS_KEY, json));
+    costTracker = new CostTracker(ctx);
     if (ctx.model?.provider === PROVIDER) {
       costTracker.activate();
     }
@@ -366,34 +415,59 @@ export default async function (pi: ExtensionAPI) {
     costTracker.add((message as AssistantMessage).usage.cost.total);
   });
 
+  pi.on("before_provider_request", (event, ctx) => {
+    if (!searchEnabled) {
+      return;
+    }
+    const model = ctx.model;
+    if (!model || model.provider !== PROVIDER) {
+      return;
+    }
+    if (!webSearchCapableModels.has(model.id)) {
+      return;
+    }
+
+    // payload is the OpenAI request body built by pi-ai. Append (or keep) the
+    // `web_search` tool entry. Idempotent — re-emit on retry safely.
+    const payload = event.payload as { tools?: Array<Record<string, unknown>> } | undefined;
+    if (!payload || !Array.isArray(payload.tools)) {
+      return;
+    }
+    if (payload.tools.some((tool) => tool["type"] === WEB_SEARCH_TOOL_TYPE)) {
+      return;
+    }
+    payload.tools.push({ type: WEB_SEARCH_TOOL_TYPE });
+  });
+
   pi.on("session_shutdown", () => {
     costTracker?.dispose();
     costTracker = undefined;
+    searchEnabled = false;
   });
 
-  pi.registerCommand("login", {
-    description: "Configure LLM Gateway when invoked as /login llmgateway",
+  pi.registerCommand("llmgateway-search", {
+    description: "Toggle LLM Gateway native web search (on/off) for this session",
     handler: async (args, ctx) => {
-      if (args.trim() !== PROVIDER) {
+      const arg = args.trim().toLowerCase();
+      const next =
+        arg === "on" || arg === "1" || arg === "true"
+          ? true
+          : arg === "off" || arg === "0" || arg === "false"
+            ? false
+            : !searchEnabled;
+
+      const model = ctx.model;
+      if (next && model?.provider === PROVIDER && !webSearchCapableModels.has(model.id)) {
         ctx.ui.notify(
-          "Use /login without arguments for built-in login, or /login llmgateway for LLM Gateway.",
+          `Model ${model.id} does not support native web search on LLM Gateway. Pick a different model.`,
           "warning",
         );
         return;
       }
 
-      const key = (await ctx.ui.input("LLM Gateway API key:", "llmg_..."))?.trim();
-      if (!key) {
-        ctx.ui.notify("LLM Gateway login cancelled", "warning");
-        return;
-      }
-
-      ctx.modelRegistry.authStorage.set(PROVIDER, { type: "api_key", key });
-      const models = await refreshProvider(pi);
-      ctx.ui.notify(
-        `LLM Gateway: saved API key and loaded ${models.length} model${models.length === 1 ? "" : "s"}`,
-        "info",
-      );
+      searchEnabled = next;
+      costTracker?.setSearchEnabled(next);
+      ctx.ui.notify(`LLM Gateway web search ${next ? "enabled" : "disabled"}`, "info");
     },
   });
 
