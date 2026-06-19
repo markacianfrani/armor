@@ -1,10 +1,23 @@
 {
-  "name": "armor",
-  "version": "1.0.0",
+  "name": "@cianfrani/armor",
+  "version": "0.0.0",
   "bin": {
     "armor": "./bin/armor"
   },
   "type": "module",
+  "exports": {
+    "./agents/*": "./agents/*",
+    "./commands/*": "./commands/*",
+    "./skills/*": "./skills/*"
+  },
+  "files": [
+    "agents",
+    "commands",
+    "skills",
+    "extensions",
+    "bin",
+    "scripts"
+  ],
   "scripts": {
     "link-config": "./scripts/link-config.sh",
     "check": "tsc --noEmit",
