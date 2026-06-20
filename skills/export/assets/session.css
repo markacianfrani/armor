@@ -37,6 +37,9 @@
   --border-strong: var(--base-200);
   --accent: var(--blue);
   --accent-dim: rgba(32, 94, 166, 0.08);
+  --purple: #5e409d;
+  --purple-soft: #8b7ec8;
+  --purple-dim: rgba(94, 64, 157, 0.07);
   --success: var(--green);
   --error: var(--red);
   --font-family: ui-serif, "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
@@ -712,8 +715,7 @@ ai-tool-result {
   font-family: var(--font-family-ui);
 }
 
-ai-event.compaction-event,
-ai-event.subagent-transcript {
+ai-event.compaction-event {
   --ai-event-background-color: color-mix(in srgb, var(--accent) 5%, transparent);
   --ai-event-border-color: var(--border);
   --ai-event-border-radius: var(--radius);
@@ -721,11 +723,6 @@ ai-event.subagent-transcript {
   --ai-event-content-gap: 10px;
   display: block;
   margin: 14px 0;
-}
-
-ai-event.subagent-transcript {
-  --ai-event-background-color: color-mix(in srgb, var(--base-500) 5%, transparent);
-  --ai-conversation-compact-gap: 8px;
 }
 
 /* ensure deep nested code in tool calls scrolls */
@@ -770,4 +767,192 @@ ai-event.subagent-transcript {
   .card-title {
     white-space: normal;
   }
+}
+
+/* ── Subagents: flat panel, scale hints, overview, hierarchy ──────────── */
+
+/* Tame the giant title: clamp to 2 lines, full text on hover. */
+.session-meta-bar .session-title {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: clamp(1.2rem, 2.2vw, 1.7rem);
+  line-height: 1.18;
+}
+
+/* One-line run summary under the meta bar. */
+.run-summary {
+  align-items: baseline;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-muted);
+  display: flex;
+  flex-wrap: wrap;
+  font-family: var(--font-family-ui);
+  font-size: 0.78rem;
+  gap: 6px 18px;
+  margin: -22px 0 22px;
+  padding-bottom: 16px;
+}
+.run-summary .rs-num {
+  color: var(--black);
+  font-weight: 600;
+}
+
+/* Subagent overview / jump list. */
+.subagent-overview {
+  background: var(--purple-dim);
+  border: 1px solid var(--border);
+  border-left: 2px solid var(--purple);
+  border-radius: var(--radius);
+  font-family: var(--font-family-ui);
+  margin: 0 0 30px;
+}
+.subagent-overview > summary {
+  color: var(--purple);
+  cursor: pointer;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  list-style: none;
+  padding: 9px 14px;
+  text-transform: uppercase;
+}
+.subagent-overview > summary::-webkit-details-marker {
+  display: none;
+}
+.subagent-overview > summary::before {
+  content: "▸ ";
+}
+.subagent-overview[open] > summary::before {
+  content: "▾ ";
+}
+.subagent-overview .ov-body {
+  padding: 0 14px 12px;
+}
+.subagent-overview .ov-actions {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.subagent-overview button {
+  background: var(--paper);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  color: var(--text-muted);
+  cursor: pointer;
+  font: 500 0.72rem var(--font-family-ui);
+  padding: 3px 9px;
+}
+.subagent-overview button:hover {
+  border-color: var(--purple);
+  color: var(--purple);
+}
+.subagent-overview .ov-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.subagent-overview a.ov-item {
+  align-items: baseline;
+  border-radius: var(--radius);
+  color: var(--text);
+  display: flex;
+  font-size: 0.82rem;
+  gap: 8px;
+  padding: 4px 6px;
+  text-decoration: none;
+}
+.subagent-overview a.ov-item:hover {
+  background: var(--surface-hover);
+}
+.subagent-overview .ov-fork {
+  color: var(--purple);
+  flex-shrink: 0;
+  font-weight: 700;
+}
+.subagent-overview .ov-counts {
+  color: var(--text-faint);
+  font-size: 0.74rem;
+  margin-left: auto;
+  padding-left: 12px;
+  white-space: nowrap;
+}
+
+/* A spawn row reads as a fork, not a generic tool row. */
+ai-tool-call[name="Agent"] {
+  --ai-tool-call-success-color: var(--purple);
+  --ai-tool-call-color: var(--purple);
+  display: block;
+  scroll-margin-top: 16px;
+}
+
+/* The flat subagent body: returned answer, flat steps, collapsed prompt. */
+.sa {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 4px;
+}
+.sa-return {
+  background: var(--purple-dim);
+  border-left: 2px solid var(--purple);
+  border-radius: var(--radius);
+  padding: 8px 12px;
+}
+.sa-return-label,
+.sa-steps-label {
+  color: var(--purple);
+  display: block;
+  font: 700 0.6rem/1 var(--font-family-ui);
+  letter-spacing: 0.14em;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+}
+.sa-steps-label {
+  color: var(--text-faint);
+  margin-bottom: 4px;
+}
+.sa-steps {
+  border-left: 2px solid var(--border-strong);
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding-left: 12px;
+}
+.sa-steps > ai-markdown {
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  margin: 4px 0;
+}
+.sa-prompt > summary {
+  color: var(--text-muted);
+  cursor: pointer;
+  font: 600 0.7rem var(--font-family-ui);
+  list-style: none;
+  padding: 2px 0;
+}
+.sa-prompt > summary::-webkit-details-marker {
+  display: none;
+}
+.sa-prompt > summary::before {
+  content: "▸ ";
+  color: var(--text-faint);
+}
+.sa-prompt[open] > summary::before {
+  content: "▾ ";
+}
+
+/* Hierarchy: prose leads, tool calls recede to a quiet log. Smaller, fainter,
+   and dimmed when collapsed; full weight on hover/open. Spawns stay prominent. */
+ai-tool-call:not([name="Agent"]) {
+  --font-size-meta: 0.72rem;
+  --font-size-caption: 0.64rem;
+  --ai-tool-call-color: var(--text-faint);
+}
+ai-tool-call:not([name="Agent"]):not([open]) {
+  opacity: 0.6;
+}
+ai-tool-call:not([name="Agent"]):hover {
+  opacity: 1;
 }

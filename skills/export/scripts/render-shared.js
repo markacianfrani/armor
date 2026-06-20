@@ -244,16 +244,124 @@ function renderConversation(messages, density = "comfortable") {
     }
     return `${html}</ai-conversation>`;
 }
-function renderSubagent(subagent) {
-    const title = subagent.name || subagent.description || `agent-${subagent.agent_id.slice(0, 8)}`;
-    const meta = [subagent.agent_id, subagent.payload.meta.model].filter(Boolean).join(" · ");
-    return ('<ai-event class="subagent-transcript" kind="custom" severity="info" source="subagent">' +
-        `<span slot="summary">Subagent: ${esc(title)}</span>` +
-        (meta ? `<span slot="meta">${esc(meta)}</span>` : "") +
-        renderConversation(subagent.payload.messages, "compact") +
-        "</ai-event>");
+function tallyToolCategory(name) {
+    const n = (name || "").toLowerCase();
+    if (n.includes("read")) {
+        return "reads";
+    }
+    if (n.includes("write") || n.includes("edit")) {
+        return "edits";
+    }
+    if (n === "bash" || n === "shell") {
+        return "cmds";
+    }
+    if (n.includes("fetch") || n.includes("search")) {
+        return "web";
+    }
+    return "other";
+}
+/** "13 tools · 8 reads · 5 web · sonnet-4-6" — the scale hint on a spawn row. */
+function subagentCountsText(toolBlocks, model) {
+    const counts = {};
+    for (const b of toolBlocks) {
+        const c = tallyToolCategory(b.tool_name);
+        counts[c] = (counts[c] ?? 0) + 1;
+    }
+    const total = toolBlocks.length;
+    const order = ["reads", "edits", "cmds", "web", "other"];
+    const parts = order.filter((k) => counts[k]).map((k) => `${counts[k]} ${k}`);
+    let text = `${total} tool${total === 1 ? "" : "s"}`;
+    if (parts.length > 0) {
+        text += ` · ${parts.slice(0, 3).join(" · ")}`;
+    }
+    if (model) {
+        text += ` · ${model.replace(/^claude-/, "")}`;
+    }
+    return text;
+}
+/** Stable anchor id for a spawn, used by the overview jump list. */
+function subagentAnchorId(subagent) {
+    return `subagent-${subagent.agent_id.slice(0, 8)}`;
+}
+/**
+ * A subagent spawn renders as one flat panel instead of a six-level nest
+ * (ai-event > ai-conversation > ai-message > …): the returned answer first,
+ * then a flat step list, then a collapsed prompt. The returned answer is the
+ * final assistant text block — not the often-empty spawn tool_result, and not
+ * the first user turn (the prompt).
+ */
+function renderSubagentSpawn(block) {
+    const sub = block.subagent;
+    const task = sub.name || sub.description || `agent-${sub.agent_id.slice(0, 8)}`;
+    const model = sub.payload?.meta?.model ?? "";
+    const asstBlocks = [];
+    for (const turn of buildConversation(sub.payload.messages)) {
+        if (turn.role === "assistant") {
+            asstBlocks.push(...turn.blocks);
+        }
+    }
+    let answerIdx = -1;
+    for (let i = asstBlocks.length - 1; i >= 0; i--) {
+        const b = asstBlocks[i];
+        if (b.type === "text" && (b.text ?? "").trim()) {
+            answerIdx = i;
+            break;
+        }
+    }
+    const toolBlocks = asstBlocks.filter((b) => b.type === "tool_use");
+    const result = block.pairedResult;
+    const resultOutput = result?.tool_output ?? "";
+    const status = result && looksLikeError(resultOutput, "Agent") ? "error" : "success";
+    const subline = subagentCountsText(toolBlocks, model);
+    let html = `<ai-tool-call id="${escAttr(subagentAnchorId(sub))}" name="Agent" label="⑂ subagent" ` +
+        `headline="${escAttr(clipHead(task, 80))}" subline="${escAttr(subline)}" status="${status}"${status === "error" ? " open" : ""}>` +
+        '<div class="sa">';
+    // (a) Returned answer.
+    let answerHtml = "";
+    if (answerIdx >= 0) {
+        answerHtml = renderBlock(asstBlocks[answerIdx]);
+    }
+    else if (resultOutput.trim()) {
+        answerHtml = `<ai-tool-result content="${escAttr(resultOutput)}" status="${status}"></ai-tool-result>`;
+    }
+    if (answerHtml) {
+        html += '<div class="sa-return"><span class="sa-return-label">Returned</span>' + answerHtml + "</div>";
+    }
+    // (b) Flat steps: narration + tool calls in order, minus the answer.
+    const stepHtml = asstBlocks
+        .map((b, i) => {
+        if (i === answerIdx) {
+            return "";
+        }
+        if (b.type === "tool_use") {
+            return renderToolUseBlock(b);
+        }
+        if (b.type === "text" || b.type === "thinking") {
+            return renderBlock(b);
+        }
+        return "";
+    })
+        .join("");
+    if (stepHtml) {
+        const n = toolBlocks.length;
+        html +=
+            `<div class="sa-steps"><span class="sa-steps-label">${n} step${n === 1 ? "" : "s"}</span>` +
+                stepHtml +
+                "</div>";
+    }
+    // (c) Prompt, collapsed.
+    const promptText = formatToolInput("Agent", block.tool_input);
+    if (promptText.trim()) {
+        html +=
+            '<details class="sa-prompt"><summary>Prompt</summary>' +
+                `<pre class="tool-input-pre"><code>${esc(promptText)}</code></pre></details>`;
+    }
+    return html + "</div></ai-tool-call>";
 }
 function renderToolUseBlock(block) {
+    if (block.subagent) {
+        return renderSubagentSpawn(block);
+    }
     const toolName = block.tool_name || "unknown";
     const result = block.pairedResult;
     const resultOutput = result?.tool_output || "";
@@ -270,9 +378,6 @@ function renderToolUseBlock(block) {
     }
     if (resultOutput) {
         html += `<ai-tool-result content="${escAttr(resultOutput)}" status="${status}"></ai-tool-result>`;
-    }
-    if (block.subagent) {
-        html += renderSubagent(block.subagent);
     }
     return `${html}</ai-tool-call>`;
 }
@@ -325,6 +430,72 @@ function renderChildren(children, opts) {
     html += "</div>";
     return html;
 }
+/** Walk every message (and nested subagents) for run-level totals + a spawn index. */
+function summarizeRun(messages) {
+    const subs = [];
+    let totalTools = 0;
+    let fileEdits = 0;
+    const walk = (msgs) => {
+        for (const m of msgs) {
+            for (const b of m.blocks) {
+                if (b.type !== "tool_use") {
+                    continue;
+                }
+                totalTools++;
+                if (tallyToolCategory(b.tool_name) === "edits") {
+                    fileEdits++;
+                }
+                if (b.subagent) {
+                    const sub = b.subagent;
+                    const subTools = [];
+                    for (const sm of sub.payload.messages) {
+                        for (const sb of sm.blocks) {
+                            if (sb.type === "tool_use") {
+                                subTools.push(sb);
+                            }
+                        }
+                    }
+                    subs.push({
+                        id: subagentAnchorId(sub),
+                        title: sub.name || sub.description || `agent-${sub.agent_id.slice(0, 8)}`,
+                        counts: subagentCountsText(subTools, ""),
+                    });
+                    walk(sub.payload.messages);
+                }
+            }
+        }
+    };
+    walk(messages);
+    return { subs, totalTools, fileEdits };
+}
+/** One quiet line giving the shape of the run before the wall of content. */
+function renderRunSummary(turns, run) {
+    const item = (num, label) => `<span><span class="rs-num">${num}</span> ${label}</span>`;
+    let html = item(turns, `turn${turns === 1 ? "" : "s"}`) +
+        item(run.totalTools, `tool call${run.totalTools === 1 ? "" : "s"}`);
+    if (run.subs.length > 0) {
+        html += item(run.subs.length, `subagent${run.subs.length === 1 ? "" : "s"}`);
+    }
+    if (run.fileEdits > 0) {
+        html += item(run.fileEdits, `file edit${run.fileEdits === 1 ? "" : "s"}`);
+    }
+    return `<div class="run-summary">${html}</div>`;
+}
+/** A jump list of the subagent spawns, with expand/collapse-all controls. */
+function renderOverview(subs) {
+    const items = subs
+        .map((s) => `<a class="ov-item" href="#${escAttr(s.id)}">` +
+        '<span class="ov-fork">⑂</span>' +
+        `<span class="ov-title">${esc(s.title)}</span>` +
+        `<span class="ov-counts">${esc(s.counts)}</span></a>`)
+        .join("");
+    return ('<details class="subagent-overview">' +
+        `<summary class="ov-summary">${subs.length} subagent${subs.length === 1 ? "" : "s"} · jump to</summary>` +
+        '<div class="ov-body">' +
+        '<span class="ov-actions"><button type="button" data-act="expand">Expand all</button>' +
+        '<button type="button" data-act="collapse">Collapse all</button></span>' +
+        `<div class="ov-list">${items}</div></div></details>`);
+}
 /** Render the meta bar, optional goal/children, and the conversation. */
 export function renderSessionHTML(payload, opts) {
     const meta = payload.meta;
@@ -356,6 +527,13 @@ export function renderSessionHTML(payload, opts) {
         html += `<span class="meta-item session-cwd">${esc(meta.cwd)}</span>`;
     }
     html += "</div>";
+    const run = summarizeRun(payload.messages);
+    if (run.totalTools > 0) {
+        html += renderRunSummary(buildConversation(payload.messages).length, run);
+    }
+    if (run.subs.length > 0) {
+        html += renderOverview(run.subs);
+    }
     if (meta.goal) {
         html += `<div class="session-goal"><span class="goal-label">Objective</span>${esc(meta.goal)}</div>`;
     }

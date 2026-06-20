@@ -54,6 +54,20 @@ if (window.customElements) {
 }
 `;
 }
+function overviewControlsScript() {
+    return `
+(function () {
+  function setAll(open) {
+    document.querySelectorAll("ai-tool-call, ai-event").forEach(function (el) { el.open = open; });
+  }
+  document.addEventListener("click", function (e) {
+    var btn = e.target.closest && e.target.closest(".subagent-overview button[data-act]");
+    if (!btn) return;
+    setAll(btn.getAttribute("data-act") === "expand");
+  });
+})();
+`;
+}
 export function buildStandaloneHTML(payload) {
     const css = readAsset("session.css");
     const componentsJs = readAsset("ai-components.js");
@@ -83,6 +97,9 @@ ${componentsJs}
     </script>
     <script>
 ${markdownWhitespacePatch()}
+    </script>
+    <script>
+${overviewControlsScript()}
     </script>
   </body>
 </html>

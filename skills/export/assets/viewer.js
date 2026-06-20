@@ -240,6 +240,109 @@
     return turns;
   }
 
+  function clipHead(value, max) {
+    return value.length > max ? value.slice(0, max - 3) + "…" : value;
+  }
+
+  function tallyToolCategory(name) {
+    const n = (name || "").toLowerCase();
+    if (n.includes("read")) return "reads";
+    if (n.includes("write") || n.includes("edit")) return "edits";
+    if (n === "bash" || n === "shell") return "cmds";
+    if (n.includes("fetch") || n.includes("search")) return "web";
+    return "other";
+  }
+
+  // "13 tools · 8 reads · 5 web · sonnet-4-6" — the scale hint on a spawn row.
+  function subagentCountsText(toolBlocks, model) {
+    const counts = {};
+    for (const b of toolBlocks) {
+      const c = tallyToolCategory(b.tool_name);
+      counts[c] = (counts[c] || 0) + 1;
+    }
+    const total = toolBlocks.length;
+    const order = ["reads", "edits", "cmds", "web", "other"];
+    const parts = order.filter((k) => counts[k]).map((k) => counts[k] + " " + k);
+    let text = total + " tool" + (total === 1 ? "" : "s");
+    if (parts.length) text += " · " + parts.slice(0, 3).join(" · ");
+    if (model) text += " · " + model.replace(/^claude-/, "");
+    return text;
+  }
+
+  function subagentAnchorId(subagent) {
+    return "subagent-" + subagent.agent_id.slice(0, 8);
+  }
+
+  // A subagent spawn renders as one flat panel: the returned answer first (the
+  // final assistant text block, not the often-empty spawn tool_result and not
+  // the prompt), then a flat step list, then a collapsed prompt.
+  function renderSubagentSpawn(block) {
+    const sub = block.subagent;
+    const task = sub.name || sub.description || "agent-" + sub.agent_id.slice(0, 8);
+    const model = (sub.payload && sub.payload.meta && sub.payload.meta.model) || "";
+    const asstBlocks = [];
+    buildConversation(sub.payload.messages).forEach((turn) => {
+      if (turn.role === "assistant") asstBlocks.push.apply(asstBlocks, turn.blocks);
+    });
+    let answerIdx = -1;
+    for (let i = asstBlocks.length - 1; i >= 0; i--) {
+      const b = asstBlocks[i];
+      if (b.type === "text" && (b.text || "").trim()) {
+        answerIdx = i;
+        break;
+      }
+    }
+    const toolBlocks = asstBlocks.filter((b) => b.type === "tool_use");
+    const result = block.pairedResult;
+    const resultOutput = (result && result.tool_output) || "";
+    const status = result && looksLikeError(resultOutput, "Agent") ? "error" : "success";
+    const subline = subagentCountsText(toolBlocks, model);
+    let html =
+      '<ai-tool-call id="' +
+      escAttr(subagentAnchorId(sub)) +
+      '" name="Agent" label="⑂ subagent" headline="' +
+      escAttr(clipHead(task, 80)) +
+      '" subline="' +
+      escAttr(subline) +
+      '" status="' +
+      status +
+      '"' +
+      (status === "error" ? " open" : "") +
+      '><div class="sa">';
+    let answerHtml = "";
+    if (answerIdx >= 0) answerHtml = renderBlock(asstBlocks[answerIdx]);
+    else if (resultOutput.trim())
+      answerHtml =
+        '<ai-tool-result content="' + escAttr(resultOutput) + '" status="' + status + '"></ai-tool-result>';
+    if (answerHtml)
+      html += '<div class="sa-return"><span class="sa-return-label">Returned</span>' + answerHtml + "</div>";
+    const stepHtml = asstBlocks
+      .map((b, i) => {
+        if (i === answerIdx) return "";
+        if (b.type === "tool_use" || b.type === "text" || b.type === "thinking") return renderBlock(b);
+        return "";
+      })
+      .join("");
+    if (stepHtml) {
+      const n = toolBlocks.length;
+      html +=
+        '<div class="sa-steps"><span class="sa-steps-label">' +
+        n +
+        " step" +
+        (n === 1 ? "" : "s") +
+        "</span>" +
+        stepHtml +
+        "</div>";
+    }
+    const promptText = formatToolInput("Agent", block.tool_input);
+    if (promptText && promptText.trim())
+      html +=
+        '<details class="sa-prompt"><summary>Prompt</summary><pre class="tool-input-pre"><code>' +
+        esc(promptText) +
+        "</code></pre></details>";
+    return html + "</div></ai-tool-call>";
+  }
+
   function renderBlock(block) {
     switch (block.type) {
       case "text": {
@@ -257,6 +360,7 @@
         return "<ai-thinking redacted></ai-thinking>";
 
       case "tool_use": {
+        if (block.subagent) return renderSubagentSpawn(block);
         const toolName = block.tool_name || "unknown";
         const headline = summarizeToolUse(toolName, block.tool_input);
         const hasInput = block.tool_input && block.tool_input.trim();
@@ -344,6 +448,78 @@
    * Render a full { meta, messages } payload into contentEl.
    * Produces the meta bar, optional goal banner, and the conversation.
    */
+  // Walk every message (and nested subagents) for run-level totals + a spawn index.
+  function summarizeRun(messages) {
+    const subs = [];
+    let totalTools = 0;
+    let fileEdits = 0;
+    function walk(msgs) {
+      msgs.forEach((m) => {
+        m.blocks.forEach((b) => {
+          if (b.type !== "tool_use") return;
+          totalTools++;
+          if (tallyToolCategory(b.tool_name) === "edits") fileEdits++;
+          if (b.subagent) {
+            const sub = b.subagent;
+            const subTools = [];
+            sub.payload.messages.forEach((sm) => {
+              sm.blocks.forEach((sb) => {
+                if (sb.type === "tool_use") subTools.push(sb);
+              });
+            });
+            subs.push({
+              id: subagentAnchorId(sub),
+              title: sub.name || sub.description || "agent-" + sub.agent_id.slice(0, 8),
+              counts: subagentCountsText(subTools, ""),
+            });
+            walk(sub.payload.messages);
+          }
+        });
+      });
+    }
+    walk(messages);
+    return { subs: subs, totalTools: totalTools, fileEdits: fileEdits };
+  }
+
+  // One quiet line giving the shape of the run before the wall of content.
+  function renderRunSummary(turns, run) {
+    const item = (num, label) => "<span><span class=\"rs-num\">" + num + "</span> " + label + "</span>";
+    let html =
+      item(turns, "turn" + (turns === 1 ? "" : "s")) +
+      item(run.totalTools, "tool call" + (run.totalTools === 1 ? "" : "s"));
+    if (run.subs.length > 0) html += item(run.subs.length, "subagent" + (run.subs.length === 1 ? "" : "s"));
+    if (run.fileEdits > 0) html += item(run.fileEdits, "file edit" + (run.fileEdits === 1 ? "" : "s"));
+    return '<div class="run-summary">' + html + "</div>";
+  }
+
+  // A collapsed jump list of the subagent spawns, with expand/collapse-all.
+  function renderOverview(subs) {
+    const items = subs
+      .map(
+        (s) =>
+          '<a class="ov-item" href="#' +
+          escAttr(s.id) +
+          '"><span class="ov-fork">⑂</span><span class="ov-title">' +
+          esc(s.title) +
+          '</span><span class="ov-counts">' +
+          esc(s.counts) +
+          "</span></a>",
+      )
+      .join("");
+    return (
+      '<details class="subagent-overview"><summary class="ov-summary">' +
+      subs.length +
+      " subagent" +
+      (subs.length === 1 ? "" : "s") +
+      ' · jump to</summary><div class="ov-body"><span class="ov-actions">' +
+      '<button type="button" data-act="expand">Expand all</button>' +
+      '<button type="button" data-act="collapse">Collapse all</button></span>' +
+      '<div class="ov-list">' +
+      items +
+      "</div></div></details>"
+    );
+  }
+
   function renderSession(data, contentEl) {
     const meta = data.meta || {};
     const sessionId = meta.session_id || "";
@@ -380,6 +556,10 @@
       html += '<span class="meta-item">' + relativeTime(meta.created_at) + "</span>";
     if (meta.cwd) html += '<span class="meta-item session-cwd">' + esc(meta.cwd) + "</span>";
     html += "</div>";
+
+    const run = summarizeRun(data.messages || []);
+    if (run.totalTools > 0) html += renderRunSummary(conversation.length, run);
+    if (run.subs.length > 0) html += renderOverview(run.subs);
 
     if (meta.goal) {
       html +=
@@ -429,4 +609,18 @@
   }
 
   window.renderSession = renderSession;
+
+  // Wire the overview's expand/collapse-all once, via delegation, so the
+  // control works wherever this renderer is mounted (live UI or export).
+  if (typeof document !== "undefined" && !window.__aiSubagentControls) {
+    window.__aiSubagentControls = true;
+    document.addEventListener("click", function (e) {
+      const btn = e.target.closest && e.target.closest(".subagent-overview button[data-act]");
+      if (!btn) return;
+      const open = btn.getAttribute("data-act") === "expand";
+      document.querySelectorAll("ai-tool-call, ai-event").forEach(function (el) {
+        el.open = open;
+      });
+    });
+  }
 })();
