@@ -1,8 +1,14 @@
 {
   "name": "@cianfrani/armor",
   "version": "0.0.0",
+  "description": "All my little AI snippets.",
+  "license": "UNLICENSED",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/markacianfrani/armor.git"
+  },
   "bin": {
-    "armor": "./bin/armor"
+    "armor": "bin/armor"
   },
   "files": [
     "agents",
