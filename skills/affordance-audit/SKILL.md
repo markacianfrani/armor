@@ -49,7 +49,7 @@ that make every other use awkward. That split is the thing to hunt.
 6. Report as a table:
 
    | Surface | Invites | Footgun | Fix |
-   | --- | --- | --- | --- |
+   | ------- | ------- | ------- | --- |
 
 ## When not to use it
 

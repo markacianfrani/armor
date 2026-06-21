@@ -136,7 +136,7 @@ incomplete enumerator.
    b. Press Tab
    c. Classify result as `page-focusable`, `boundary`, or `same`
    d. Fail on `same` unless E is inside an intentional trap with expected
-      behavior
+   behavior
 
 **What it catches:** Accidental focus traps, elements that consume Tab without
 advancing focus, broken roving tabindex implementations.

@@ -19,7 +19,7 @@ This skill turns that into a repeatable QA loop:
 3. Drive the user flow you're QA'ing (typing, clicking, opening modals, etc.).
 4. Read the captured shifts back as JSON.
 5. Interpret the deltas: which DOM node moved, by how many pixels, in which direction.
-6. **Validate the instrumentation by deliberately re-introducing the bug** (revert the suspected fix, rerun) — a `count: 0` result on its own doesn't prove anything; it could mean nothing shifted *or* the observer wasn't watching. The A/B step is what makes the result trustworthy.
+6. **Validate the instrumentation by deliberately re-introducing the bug** (revert the suspected fix, rerun) — a `count: 0` result on its own doesn't prove anything; it could mean nothing shifted _or_ the observer wasn't watching. The A/B step is what makes the result trustworthy.
 
 ## The four root causes
 
@@ -41,7 +41,7 @@ Read this end to end before starting; the steps depend on each other.
 
 ### Step 0 — make sure the page is reachable
 
-The `chrome-devtools` MCP needs the page to actually load. If the route is behind auth and you don't have a session, either log in once interactively, or temporarily relax the guard for the route under test (and *restore it before commit*). Either way: you can't QA a 302-to-login.
+The `chrome-devtools` MCP needs the page to actually load. If the route is behind auth and you don't have a session, either log in once interactively, or temporarily relax the guard for the route under test (and _restore it before commit_). Either way: you can't QA a 302-to-login.
 
 The MCP tools you'll use are deferred — load them via `ToolSearch` with this query:
 
@@ -108,7 +108,7 @@ If you relaxed an auth guard, dev-only stress-test affordance, etc., put it back
 
 1. **`initScript` only runs on the next navigation, not on reload.** If you `navigate_page` with `type: 'reload'`, the script attached to the previous load is gone and `window.__shifts` / `window.__shiftSummary` are undefined. Either re-navigate (`type: 'url'`) with the initScript again, or re-inject the observer via `evaluate_script` after the reload settles. After re-injection, use `buffered: false` on the observer — `buffered: true` would surface buffered shifts from the previous observer, which you've already accounted for.
 
-2. **`hadRecentInput: true` does not mean "ignore".** That flag exists so the official CLS metric excludes shifts the user "asked for" by interacting in the last 500ms. But content shifting *because* the user typed a key — when the keystroke didn't logically demand layout motion — is still jank. The flag is for scoring, not for human judgment. Read the deltas; trust your eyes.
+2. **`hadRecentInput: true` does not mean "ignore".** That flag exists so the official CLS metric excludes shifts the user "asked for" by interacting in the last 500ms. But content shifting _because_ the user typed a key — when the keystroke didn't logically demand layout motion — is still jank. The flag is for scoring, not for human judgment. Read the deltas; trust your eyes.
 
 3. **Animations show up as many small entries, not one big one.** A `transition: padding 200ms ease-out` will emit 5–10 separate `layout-shift` entries (one per animated frame), each with a small `value` (e.g. 0.0005). The cumulative might still be small, but `count >= 5` with all sources pointing at the same node and consistent `dy` direction is a strong tell that something is animating its layout-affecting property. The fix is almost always "animate `transform` instead" or "snap to final state instantly".
 
@@ -116,11 +116,10 @@ If you relaxed an auth guard, dev-only stress-test affordance, etc., put it back
 
 5. **You're observing a single document.** Iframes, web components with shadow DOM, and cross-origin embeds need their own observers. If the suspect content is in an iframe, attach the observer inside that iframe.
 
-
 ## Reporting findings
 
 When you tell the user what you found, lead with the deltas, not the scalar:
 
-> *"Typing in the search box emitted 7 layout-shift entries (cumulative 0.0031). All sources point at `H1.home__title`, `P.home__subtitle`, `DIV.home__searchbar`, `SECTION.home__results` — each shifting `dy: -3 to -4` px in sync. Pattern matches an animated `padding` transition on the parent, frame by frame. Suggest switching to `transform` or removing the transition."*
+> _"Typing in the search box emitted 7 layout-shift entries (cumulative 0.0031). All sources point at `H1.home__title`, `P.home__subtitle`, `DIV.home__searchbar`, `SECTION.home__results` — each shifting `dy: -3 to -4` px in sync. Pattern matches an animated `padding` transition on the parent, frame by frame. Suggest switching to `transform` or removing the transition."_
 
 That's actionable. "CLS = 0.003" by itself isn't.

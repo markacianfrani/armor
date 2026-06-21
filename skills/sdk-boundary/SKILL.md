@@ -156,12 +156,12 @@ npm install --save-dev @hey-api/openapi-ts@latest
 `openapi-ts.config.ts`:
 
 ```typescript
-import { defineConfig } from '@hey-api/openapi-ts'
+import { defineConfig } from "@hey-api/openapi-ts";
 
 export default defineConfig({
-  input: 'http://localhost:8000/openapi.json',
-  output: 'src/api',
-})
+  input: "http://localhost:8000/openapi.json",
+  output: "src/api",
+});
 ```
 
 `package.json`:
@@ -177,10 +177,10 @@ export default defineConfig({
 Usage:
 
 ```typescript
-import { listUsers, getUser } from './api/sdk.gen'
+import { listUsers, getUser } from "./api/sdk.gen";
 
-const users = await listUsers({ query: { limit: 10 } })
-const user = await getUser({ path: { user_id: 123 } })
+const users = await listUsers({ query: { limit: 10 } });
+const user = await getUser({ path: { user_id: 123 } });
 ```
 
 ### Angular HTTP Resources
@@ -190,18 +190,13 @@ services alongside requests and types
 (https://heyapi.dev/openapi-ts/plugins/angular):
 
 ```typescript
-import { defineConfig } from '@hey-api/openapi-ts'
+import { defineConfig } from "@hey-api/openapi-ts";
 
 export default defineConfig({
-  input: 'http://localhost:8000/openapi.json',
-  output: 'src/api',
-  plugins: [
-    '@hey-api/client-fetch',
-    '@hey-api/typescript',
-    '@hey-api/sdk',
-    '@hey-api/angular',
-  ],
-})
+  input: "http://localhost:8000/openapi.json",
+  output: "src/api",
+  plugins: ["@hey-api/client-fetch", "@hey-api/typescript", "@hey-api/sdk", "@hey-api/angular"],
+});
 ```
 
 Three layers come out:

@@ -29,6 +29,7 @@ Most boxes, circles, labels, and containers are vertices:
 ```
 
 Rules:
+
 - `vertex="1"` marks a shape node
 - `parent="1"` attaches it to the default layer
 - `value` is the displayed label; use escaped XML entities
@@ -45,6 +46,7 @@ Connections between shapes are edges:
 ```
 
 Rules:
+
 - `edge="1"` marks a connector
 - Always include a child `<mxGeometry relative="1" as="geometry" />`
 - Use `source` and `target` with existing cell ids when possible
@@ -152,6 +154,7 @@ whiteSpace=wrap;html=1;
 ```
 
 For multiline labels, plain text with line breaks usually works best:
+
 - `value="Line 1&#xa;Line 2"`
 
 Avoid complex embedded HTML unless necessary.
@@ -159,6 +162,7 @@ Avoid complex embedded HTML unless necessary.
 ## Common diagram patterns
 
 ### Flowchart
+
 - Start/end: ellipse
 - Step: rounded rectangle
 - Decision: rhombus
@@ -166,19 +170,23 @@ Avoid complex embedded HTML unless necessary.
 - Keep top-to-bottom or left-to-right consistently
 
 ### Architecture diagram
+
 - Use containers/swimlanes for trust boundaries or domains
 - Use dashed boundaries for external systems / networks
 - Prefer simple rectangles over ornate icons unless specifically requested
 - Label arrows with protocols or events only when useful
 
 ### ER diagram
+
 - Entity: rectangle
 - Attribute list: use line breaks inside `value`
 - Relationships: labeled edges or narrow diamonds if needed
 - Use monospaced styling only if the user asks
 
 ### Sequence-like diagram
+
 Draw.io can represent sequence diagrams with plain shapes:
+
 - Participant header: rectangle
 - Lifeline: thin dashed vertical line
 - Messages: horizontal arrows
@@ -198,6 +206,7 @@ A container is still a vertex. Child nodes can use the container id as parent:
 ```
 
 When nesting:
+
 - Child coordinates are relative to the parent container
 - Use containers to reduce edge crossings and show ownership
 
@@ -206,6 +215,7 @@ When nesting:
 For this skill, default to a single page unless the user explicitly asks for multiple pages.
 
 Stay with:
+
 - one `mxGraphModel`
 - one default layer via `id="1"`
 - all content under `parent="1"` or nested under a container
@@ -215,6 +225,7 @@ Stay with:
 Only add metadata when it serves the user’s request.
 
 Useful optional attributes on `mxCell`:
+
 - `value="..."` — visible label
 - `id="..."` — unique identifier
 
@@ -223,6 +234,7 @@ Avoid adding undocumented custom attributes unless needed. Keep generated XML mi
 ## Color guidance
 
 Use restrained colors. Good defaults:
+
 - Blue: `fillColor=#dae8fc;strokeColor=#6c8ebf;`
 - Green: `fillColor=#d5e8d4;strokeColor=#82b366;`
 - Yellow: `fillColor=#fff2cc;strokeColor=#d6b656;`
@@ -233,6 +245,7 @@ Use restrained colors. Good defaults:
 ### Dark-mode-friendly choices
 
 If the user asks for dark mode, prefer darker fills with lighter text/strokes:
+
 - Surface: `fillColor=#1f2937;strokeColor=#9ca3af;fontColor=#f9fafb;`
 - Secondary: `fillColor=#374151;strokeColor=#d1d5db;fontColor=#f9fafb;`
 - Accent blue: `fillColor=#1d4ed8;strokeColor=#93c5fd;fontColor=#eff6ff;`
@@ -243,6 +256,7 @@ Also set `fontColor` explicitly in dark diagrams.
 ## XML well-formedness rules
 
 These are mandatory:
+
 - Do not include XML comments
 - Escape special characters in attributes and text:
   - `&` → `&amp;`
@@ -258,6 +272,7 @@ These are mandatory:
 ## Practical generation checklist
 
 Before writing the file, verify:
+
 1. The document starts with `mxGraphModel`
 2. Root cells `0` and `1` exist
 3. Every node/edge id is unique

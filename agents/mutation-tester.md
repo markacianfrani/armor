@@ -25,7 +25,6 @@ The caller provides:
 2. **Baseline run.** Run the test command to confirm it passes. If it fails, stop and report immediately — don't mutate broken tests.
 
 3. **Apply mutations.** For each new/changed assertion, invert it:
-
    - `.toBe(X)` → `.not.toBe(X)`
    - `.toEqual(X)` → `.not.toEqual(X)`
    - `.toBeDefined()` → `.toBeUndefined()`

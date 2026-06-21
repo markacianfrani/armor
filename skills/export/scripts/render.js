@@ -13,25 +13,26 @@
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+
 import { esc, renderSessionHTML } from "./render-shared.js";
 function currentModuleDir() {
-    const meta = import.meta;
-    return meta.dirname ?? meta.dir ?? dirname(fileURLToPath(import.meta.url));
+  const meta = import.meta;
+  return meta.dirname ?? meta.dir ?? dirname(fileURLToPath(import.meta.url));
 }
 function bundledAssetDir() {
-    const moduleDir = currentModuleDir();
-    const skillAssets = resolve(moduleDir, "..", "assets");
-    if (existsSync(skillAssets)) {
-        return skillAssets;
-    }
-    return resolve(moduleDir, "..", "public");
+  const moduleDir = currentModuleDir();
+  const skillAssets = resolve(moduleDir, "..", "assets");
+  if (existsSync(skillAssets)) {
+    return skillAssets;
+  }
+  return resolve(moduleDir, "..", "public");
 }
 const assetDir = bundledAssetDir();
 function readAsset(name) {
-    return readFileSync(join(assetDir, name), "utf-8");
+  return readFileSync(join(assetDir, name), "utf-8");
 }
 function markdownWhitespacePatch() {
-    return `
+  return `
 function patchMarkdownListWhitespace() {
   function apply() {
     document.querySelectorAll("ai-markdown").forEach((el) => {
@@ -55,7 +56,7 @@ if (window.customElements) {
 `;
 }
 function overviewControlsScript() {
-    return `
+  return `
 (function () {
   function setAll(open) {
     document.querySelectorAll("ai-tool-call, ai-event").forEach(function (el) { el.open = open; });
@@ -69,13 +70,13 @@ function overviewControlsScript() {
 `;
 }
 export function buildStandaloneHTML(payload) {
-    const css = readAsset("session.css");
-    const componentsJs = readAsset("ai-components.js");
-    const title = esc(payload.meta.title || "Session");
-    // Standalone exports have no router: render links as inert labels and
-    // show the raw timestamp (no clock to compute "3m ago" against later).
-    const sessionHtml = renderSessionHTML(payload, { relativeTime: false, isStandalone: true });
-    return `<!doctype html>
+  const css = readAsset("session.css");
+  const componentsJs = readAsset("ai-components.js");
+  const title = esc(payload.meta.title || "Session");
+  // Standalone exports have no router: render links as inert labels and
+  // show the raw timestamp (no clock to compute "3m ago" against later).
+  const sessionHtml = renderSessionHTML(payload, { relativeTime: false, isStandalone: true });
+  return `<!doctype html>
 <html lang="en" class="standalone">
   <head>
     <meta charset="UTF-8" />

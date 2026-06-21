@@ -41,6 +41,7 @@ Both passes are beatrix, but in separate, fresh contexts. The context that just 
    ## Confirmed Findings
 
    ### [HIGH | MEDIUM | LOW] — [Category] — `file:line`
+
    - **What's wrong:** [the vulnerable code and why]
    - **Exploit chain:** [the ordered preconditions]
    - **Fix:** [the smallest correct change]

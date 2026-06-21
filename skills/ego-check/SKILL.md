@@ -53,7 +53,7 @@ boring on purpose. It does the obvious thing in the obvious place.
 ## Report
 
 | Location | What | Who it serves | Simpler alternative |
-| --- | --- | --- | --- |
+| -------- | ---- | ------------- | ------------------- |
 
 Keep it specific. Point at lines. Offer the simpler version, do not just name the
 sin.

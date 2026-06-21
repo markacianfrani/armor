@@ -28,12 +28,12 @@ If no format is mentioned, just write the `.drawio` file and open it in draw.io.
 
 ### Supported export formats
 
-| Format | Embed XML | Notes |
-|--------|-----------|-------|
-| `png` | Yes (`-e`) | Viewable everywhere, editable in draw.io |
-| `svg` | Yes (`-e`) | Scalable, editable in draw.io |
-| `pdf` | Yes (`-e`) | Printable, editable in draw.io |
-| `jpg` | No | Lossy, no embedded XML support |
+| Format | Embed XML  | Notes                                    |
+| ------ | ---------- | ---------------------------------------- |
+| `png`  | Yes (`-e`) | Viewable everywhere, editable in draw.io |
+| `svg`  | Yes (`-e`) | Scalable, editable in draw.io            |
+| `pdf`  | Yes (`-e`) | Printable, editable in draw.io           |
+| `jpg`  | No         | Lossy, no embedded XML support           |
 
 PNG, SVG, and PDF all support `--embed-diagram` — the exported file contains the full diagram XML, so opening it in draw.io recovers the editable diagram.
 
@@ -70,6 +70,7 @@ drawio -x -f <format> -e -b 10 -o <output> <input.drawio>
 ```
 
 Key flags:
+
 - `-x` / `--export`: export mode
 - `-f` / `--format`: output format (png, svg, pdf, jpg)
 - `-e` / `--embed-diagram`: embed diagram XML in the output (PNG, SVG, PDF only)
@@ -83,10 +84,10 @@ Key flags:
 
 ### Opening the result
 
-| Environment | Command |
-|-------------|---------|
-| macOS | `open <file>` |
-| Linux | `xdg-open <file>` |
+| Environment | Command           |
+| ----------- | ----------------- |
+| macOS       | `open <file>`     |
+| Linux       | `xdg-open <file>` |
 
 ## File naming
 
@@ -125,13 +126,13 @@ Read that local file instead of fetching any remote documentation. Do not make t
 
 ## Troubleshooting
 
-| Problem | Cause | Solution |
-|---------|-------|----------|
-| draw.io CLI not found | Desktop app not installed or not on PATH | Keep the `.drawio` file and tell the user to install the draw.io desktop app, or open the file manually |
-| Export produces empty/corrupt file | Invalid XML (e.g. double hyphens in comments, unescaped special characters) | Validate XML well-formedness before writing; see the XML well-formedness section below |
-| Diagram opens but looks blank | Missing root cells `id="0"` and `id="1"` | Ensure the basic mxGraphModel structure is complete |
-| Edges not rendering | Edge mxCell is self-closing (no child mxGeometry element) | Every edge must have `<mxGeometry relative="1" as="geometry" />` as a child element |
-| File won't open after export | Incorrect file path or missing file association | Print the absolute file path so the user can open it manually |
+| Problem                            | Cause                                                                       | Solution                                                                                                |
+| ---------------------------------- | --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| draw.io CLI not found              | Desktop app not installed or not on PATH                                    | Keep the `.drawio` file and tell the user to install the draw.io desktop app, or open the file manually |
+| Export produces empty/corrupt file | Invalid XML (e.g. double hyphens in comments, unescaped special characters) | Validate XML well-formedness before writing; see the XML well-formedness section below                  |
+| Diagram opens but looks blank      | Missing root cells `id="0"` and `id="1"`                                    | Ensure the basic mxGraphModel structure is complete                                                     |
+| Edges not rendering                | Edge mxCell is self-closing (no child mxGeometry element)                   | Every edge must have `<mxGeometry relative="1" as="geometry" />` as a child element                     |
+| File won't open after export       | Incorrect file path or missing file association                             | Print the absolute file path so the user can open it manually                                           |
 
 ## CRITICAL: XML well-formedness
 

@@ -56,16 +56,16 @@ Five failure modes. Every test should be checked against all of them.
 ### 6. Names and readability
 
 - Does the `it` name describe behavior in present tense, or does it describe the method being called?
-- Is the name vague? `"does the thing correctly"`, `"works as expected"`, `"handles the case"` — these tell the next engineer nothing. The name should describe what *correctly* actually means. `"returns null when the user has no active policy"` beats `"handles missing policy correctly"`.
+- Is the name vague? `"does the thing correctly"`, `"works as expected"`, `"handles the case"` — these tell the next engineer nothing. The name should describe what _correctly_ actually means. `"returns null when the user has no active policy"` beats `"handles missing policy correctly"`.
 - If this test goes red in six months, will the failure message tell the next engineer what broke? Or will they have to read the test body to figure out what "failed" means?
 - Is the `describe` block tied to a class/method a reader can find?
 - Is each `it` tight (arrange / act / assert), or is logic smeared across shared setup?
 
 ### 7. Brittle assertions on incidental output
 
-- Does the test pin the exact wording of an error message or log line? A copy-edit to that string breaks the test without any behavior changing. Assert on the error *type*, a stable error code, or the raised exception class instead.
+- Does the test pin the exact wording of an error message or log line? A copy-edit to that string breaks the test without any behavior changing. Assert on the error _type_, a stable error code, or the raised exception class instead.
 - Same question for timestamps, generated IDs, the ordering of an unordered collection, or full-object equality where only one field carries the behavior — is the test coupled to detail that isn't what's under test?
-- Ask: if someone reworded this message or added a field to this object, *should* this test go red? If not, it's asserting on too much.
+- Ask: if someone reworded this message or added a field to this object, _should_ this test go red? If not, it's asserting on too much.
 
 ## Output format
 

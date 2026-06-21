@@ -10,9 +10,9 @@ metadata:
 
 A good reusable component is a boundary. Its primary function is to reduce cognitive load, NOT necessarily to prevent repetition. Most importantly, not every component should be reusable. If a component is not reusable, these principles need not apply.
 
-**model everything off of HTML.** If your component doesn't feel like something the platform could have shipped, it's probably wrong, with the exception of <input>. <input> is such a terrible, bloated HTML element. HTML is a fine, battle-tested standard for creating composable elements. 
+**model everything off of HTML.** If your component doesn't feel like something the platform could have shipped, it's probably wrong, with the exception of <input>. <input> is such a terrible, bloated HTML element. HTML is a fine, battle-tested standard for creating composable elements.
 
-You will spend more time and effort making a component reusable. 
+You will spend more time and effort making a component reusable.
 
 ## Rules and Suggestions
 

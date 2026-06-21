@@ -244,7 +244,7 @@ Do not create a Knip config by default unless the first run shows false positive
 
 ```jsonc
 {
-  "$schema": "https://unpkg.com/knip@6/schema-jsonc.json"
+  "$schema": "https://unpkg.com/knip@6/schema-jsonc.json",
 }
 ```
 

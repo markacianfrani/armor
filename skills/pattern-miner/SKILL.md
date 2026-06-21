@@ -29,12 +29,14 @@ A pattern is NOT just a documented design decision. A good pattern:
 6. **Composable** - Can build on other patterns and enable new ones
 
 **Example of repetition:**
+
 - Thread #425: "Expired vs cancelled vs nonrenewed" (insurance status)
 - Thread #549: "Limited water damage" (coverage terminology)
 - **Same fundamental tension**: Domain terminology that users misinterpret
 - **Agnostic solution**: When domain terms differ from common usage, explicitly label the distinction
 
 **Not a pattern:**
+
 - A one-off debate about button color
 - A context-specific decision that wouldn't apply elsewhere
 - An incident, not a recurring problem
@@ -44,7 +46,7 @@ A pattern is NOT just a documented design decision. A good pattern:
 **Let the patterns emerge from the content.** Don't pre-define what tensions to look for. Instead:
 
 1. Pull threads with substantial debate (4+ replies)
-2. Have the LLM analyze each thread for the *fundamental* tension (not surface topic)
+2. Have the LLM analyze each thread for the _fundamental_ tension (not surface topic)
 3. Look for the same tension appearing with different surface topics
 4. Patterns emerge from repetition across contexts
 
@@ -105,13 +107,16 @@ For each pattern found:
 ## Mining Heuristics
 
 ### Thread Selection
+
 - **4+ replies**: Real debate happening
 - **Multiple roles**: Design + Eng + Legal = richer pattern
 - **Contains questions**: Uncertainty being resolved
 - **Contains disagreement**: Competing perspectives
 
 ### Pattern Quality
+
 A good pattern has:
+
 - **Repetition**: Appears in 3+ threads
 - **Clear forces**: Identifiable stakeholders/concerns in tension
 - **Testable trigger**: Know when to apply
@@ -273,15 +278,11 @@ These repeated tensions are your pattern candidates. One-offs are noise.
           "surface_topic": "Phone number helper text"
         }
       ],
-      "trigger_conditions": [
-        "Context-free conditions when this applies"
-      ],
+      "trigger_conditions": ["Context-free conditions when this applies"],
       "resolution_framework": "IF condition THEN action",
       "builds_on": ["other-pattern-name"],
       "enables": ["patterns-this-makes-possible"],
-      "anti_patterns": [
-        "What violating this looks like"
-      ],
+      "anti_patterns": ["What violating this looks like"],
       "confidence": "high/medium/low based on repetition"
     }
   ],

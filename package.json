@@ -4,12 +4,6 @@
   "bin": {
     "armor": "./bin/armor"
   },
-  "type": "module",
-  "exports": {
-    "./agents/*": "./agents/*",
-    "./commands/*": "./commands/*",
-    "./skills/*": "./skills/*"
-  },
   "files": [
     "agents",
     "commands",
@@ -18,6 +12,12 @@
     "bin",
     "scripts"
   ],
+  "type": "module",
+  "exports": {
+    "./agents/*": "./agents/*",
+    "./commands/*": "./commands/*",
+    "./skills/*": "./skills/*"
+  },
   "scripts": {
     "link-config": "./scripts/link-config.sh",
     "check": "tsc --noEmit",

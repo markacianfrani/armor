@@ -26,11 +26,13 @@ Both produce the same visual outcome (an empty screen) but require opposite resp
 **Distinguish zero-data from filtered-to-empty with different messaging and actions.**
 
 For zero-data:
+
 - Explain what this area is for
 - Provide a primary action to create the first item
 - Consider showing example content or templates
 
 For filtered-to-empty:
+
 - Acknowledge that filters are active
 - Show a "Clear filters" or "Reset" action
 - Optionally show how many total items exist ("0 of 47 items match")
