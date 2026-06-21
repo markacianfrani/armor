@@ -28,6 +28,8 @@
     "import/no-cycle": "error",
     "import/no-duplicates": "error",
     "import/no-nodejs-modules": "off",
+    "import/no-named-export": "off",
+    "import/group-exports": "off",
     "sort-imports": "off",
     "no-ternary": "off",
     "init-declarations": "off",
