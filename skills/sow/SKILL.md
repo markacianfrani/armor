@@ -73,6 +73,8 @@ Copy configs from the `references/` folder:
 - `references/oxfmtrc.json` → `.oxfmtrc.json`
 - `references/tsconfig.json` → `tsconfig.json`
 
+**Lint config posture.** Deliberately loud, and the `"off"` rules are intentional — they kill formatter conflicts, wrong-environment rules, two mutually-exclusive pairs, and cross-plugin double-reporting. Don't re-enable an off without checking why it's off. One invisible trap: `plugins` _overwrites_ oxlint's defaults instead of extending them, so the list must name every default too (`eslint`, `typescript`, `unicorn`, `oxc`) — drop `oxc` and you silently lose its rules.
+
 For tsconfig, adjust the `@src/*` path mapping to match the project structure. The config has no `baseUrl` — TypeScript 6.0 made it a hard error, so `paths` values are relative (`./src/*`) and resolve from the tsconfig's location.\*
 
 > \* **Version floors.** Relative `paths` without `baseUrl` works on TS 4.1+. This config's real floor is higher: `lib: ["ES2023"]` needs TS 5.0+, and `moduleResolution: nodenext` needs 4.7+. Dropping `baseUrl` did not lower compatibility — the old config already required 5.0+. To support an older TS, lower `lib` (e.g. `ES2022` reaches back to 4.7); the relative `paths` are fine down to 4.1.
@@ -169,7 +171,7 @@ The formatter config should include:
 
 - `$schema` for editor validation
 - explicit defaults for the style choices we want to standardize (`printWidth`, semicolons, quotes, trailing commas, line endings)
-- `sortImports: true` so formatting keeps import ordering aligned with linting
+- `sortImports: true` so the formatter owns import ordering (the lint `sort-imports` rule is off to avoid fighting it)
 - `sortPackageJson: true` to use Oxfmt's package.json ordering
 - `ignorePatterns` for common generated output directories
 
