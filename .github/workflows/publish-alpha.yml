@@ -1,0 +1,73 @@
+name: Publish alpha
+
+# Auto-publish an @alpha prerelease to npm whenever the shipping surface changes.
+#
+# Auth model: npm Trusted Publishing (OIDC) + provenance signing. No stored
+# NPM_TOKEN. Actions are pinned to commit SHAs (not version tags) for
+# supply-chain integrity — update both SHAs together when bumping.
+#
+# npm-side one-time setup (manual, ~1 min):
+#   https://www.npmjs.com/package/@cianfrani/armor/access → "Linked Actions"
+#   → add a Trusted Publisher:
+#     repository:   markacianfrani/armor
+#     workflow:     publish-alpha.yml
+#     environment:  npm-alpha
+#
+# GitHub-side one-time setup:
+#   Settings → Environments → New environment "npm-alpha" (no secrets needed).
+#   Trusted publishing is bound to this environment name, so it must match
+#   exactly what's registered on npm.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "agents/**"
+      - "commands/**"
+      - "skills/**"
+      - "bin/**"
+      - "scripts/**"
+      - "package.json"
+      - ".github/workflows/publish-alpha.yml"
+  workflow_dispatch: {} # manual "publish now" from the Actions tab
+
+permissions:
+  contents: read
+  id-token: write # npm provenance + Trusted Publishing (OIDC); no stored token
+
+concurrency:
+  group: publish-alpha
+  cancel-in-progress: false # never interrupt a publish mid-flight
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment: npm-alpha # must match the Trusted Publisher registration
+    # "[skip publish]" in any commit message → skip the whole run.
+    if: ${{ !contains(github.event.head_commit.message, '[skip publish]') }}
+    steps:
+      - name: Checkout
+        # actions/checkout@v7.0.0
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          persist-credentials: false
+
+      - name: Setup Node
+        # actions/setup-node@v6.4.0
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4b2d9c7362e8dae4041e
+        with:
+          node-version: lts/*
+          registry-url: https://registry.npmjs.org
+
+      - name: Compute alpha version
+        id: version
+        env:
+          RUN_NUMBER: ${{ github.run_number }}
+          GITHUB_SHA: ${{ github.sha }}
+        run: |
+          v="$(node scripts/alpha-version.mjs)"
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          echo "publishing $v"
+
+      - name: Publish (alpha tag, with provenance)
+        run: npm publish --tag alpha --provenance --access public
