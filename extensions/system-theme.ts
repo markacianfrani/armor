@@ -17,22 +17,23 @@ import { existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
+
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 
 const execAsync = promisify(exec);
 
-const platform = process.platform;
+const { platform } = process;
 const OMARCHY_THEME_DIR = join(homedir(), ".config", "omarchy", "current", "theme");
 
 function findThemePair(themes: { name: string }[]): { dark: string; light: string } | null {
-  const names = themes.map((t) => t.name);
-  const darkTheme = names.find((n) => n.endsWith("-dark"));
-  if (!darkTheme) {
+  const names = themes.map((theme) => theme.name);
+  const darkTheme = names.find((name) => name.endsWith("-dark"));
+  if (darkTheme === undefined) {
     return null;
   }
   const base = darkTheme.slice(0, -5);
-  const lightTheme = names.find((n) => n === `${base}-light`);
-  if (!lightTheme) {
+  const lightTheme = names.find((name) => name === `${base}-light`);
+  if (lightTheme === undefined) {
     return null;
   }
   return { dark: darkTheme, light: lightTheme };
@@ -65,7 +66,7 @@ async function isDarkMode(): Promise<boolean> {
   }
 }
 
-export default function (pi: ExtensionAPI) {
+export default function systemTheme(pi: ExtensionAPI) {
   let intervalId: ReturnType<typeof setInterval> | null = null;
 
   pi.on("session_start", async (_event, ctx) => {
@@ -77,13 +78,14 @@ export default function (pi: ExtensionAPI) {
     let currentIsDark = await isDarkMode();
     ctx.ui.setTheme(currentIsDark ? pair.dark : pair.light);
 
-    intervalId = setInterval(async () => {
+    const tick = async (): Promise<void> => {
       const newIsDark = await isDarkMode();
       if (newIsDark !== currentIsDark) {
         currentIsDark = newIsDark;
         ctx.ui.setTheme(currentIsDark ? pair.dark : pair.light);
       }
-    }, 2000);
+    };
+    intervalId = setInterval(() => void tick(), 2000);
   });
 
   pi.on("session_shutdown", () => {

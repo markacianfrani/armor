@@ -1,6 +1,15 @@
 {
   "$schema": "https://raw.githubusercontent.com/oxc-project/oxc/refs/heads/main/npm/oxlint/configuration_schema.json",
-  "plugins": ["eslint", "typescript", "unicorn", "import", "oxc", "promise", "node", "vitest"],
+  "plugins": [
+    "eslint",
+    "typescript",
+    "unicorn",
+    "import",
+    "oxc",
+    "promise",
+    "node",
+    "vitest"
+  ],
   "categories": {
     "correctness": "error",
     "suspicious": "warn",
@@ -33,6 +42,7 @@
     "init-declarations": "off",
     "func-style": "off",
     "no-magic-numbers": "off",
+    "capitalized-comments": "off",
     "typescript/no-implied-eval": "off",
     "typescript/prefer-promise-reject-errors": "off",
     "typescript/require-await": "off",
@@ -46,6 +56,7 @@
     "unicorn/no-useless-spread": "error",
     "unicorn/consistent-function-scoping": "error",
     "unicorn/no-null": "off",
+    "oxc/branches-sharing-code": "error",
     "max-lines": [
       "error",
       {

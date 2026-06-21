@@ -27,20 +27,20 @@ async function buildRequest(
   registry: ModelRegistry,
 ): Promise<{ url: string; init: RequestInit } | null> {
   const auth = await registry.getApiKeyAndHeaders(model);
-  if (!auth.ok || !auth.apiKey) {
+  if (!auth.ok || auth.apiKey === undefined || auth.apiKey === "") {
     return null;
   }
 
   return {
-    url: "https://openrouter.ai/api/v1/key",
     init: {
       headers: {
-        Authorization: `Bearer ${auth.apiKey}`,
         Accept: "application/json",
+        Authorization: `Bearer ${auth.apiKey}`,
         ...auth.headers,
       },
       signal: AbortSignal.timeout(10_000),
     },
+    url: "https://openrouter.ai/api/v1/key",
   };
 }
 
@@ -52,34 +52,39 @@ interface UsageWindow {
   label?: string;
 }
 
+function asNumber(value: unknown): number | undefined {
+  return typeof value === "number" ? value : undefined;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
 function normalize(json: unknown): UsageWindow[] | null {
-  if (!json || typeof json !== "object") {
+  if (!isRecord(json)) {
     return null;
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- untyped vendor API response
-  const obj = json as Record<string, any>;
-  const data = obj["data"];
-  if (!data || typeof data !== "object") {
+  const key = json["data"];
+  if (!isRecord(key)) {
     return null;
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- untyped vendor API response
-  const key = data as Record<string, any>;
-  const limit = key["limit"];
-  const remaining = key["limit_remaining"];
-  const usage = key["usage"]; // total spent in USD
+  const limit = asNumber(key["limit"]);
+  const remaining = asNumber(key["limit_remaining"]);
+  // total spent in USD
+  const usage = asNumber(key["usage"]);
 
-  const label = typeof usage === "number" && usage > 0 ? `\$${usage.toFixed(2)}` : undefined;
+  const label = usage !== undefined && usage > 0 ? `$${usage.toFixed(2)}` : undefined;
 
   // If the key has a credit limit, show a percentage bar + dollar label
-  if (typeof limit === "number" && limit > 0 && typeof remaining === "number") {
+  if (limit !== undefined && limit > 0 && remaining !== undefined) {
     const usedPercent = ((limit - remaining) / limit) * 100;
-    return [{ usedPercent: Math.min(100, Math.max(0, usedPercent)), label }];
+    return [{ label, usedPercent: Math.min(100, Math.max(0, usedPercent)) }];
   }
 
   // No limit (pay-as-you-go) — show dollar amount only
-  if (label) {
+  if (label !== undefined) {
     return [{ label }];
   }
 
@@ -100,25 +105,27 @@ class UsagePoller {
   private timer: ReturnType<typeof setInterval> | undefined;
   private inFlight: Promise<void> | undefined;
   private generation = 0;
+  private readonly registry: ModelRegistry;
+  private readonly publish: (json?: string) => void;
 
-  constructor(
-    private registry: ModelRegistry,
-    private publish: (json: string | undefined) => void,
-  ) {}
+  constructor(registry: ModelRegistry, publish: (json?: string) => void) {
+    this.registry = registry;
+    this.publish = publish;
+  }
 
   activate(model: AnyModel): void {
     this.generation++;
     this.state = "idle";
     this.stopTimer();
-    this.poll(model);
-    this.timer = setInterval(() => this.poll(model), POLL_MS);
+    void this.poll(model);
+    this.timer = setInterval(() => void this.poll(model), POLL_MS);
   }
 
   deactivate(): void {
     this.generation++;
     this.state = "idle";
     this.stopTimer();
-    this.publish(undefined);
+    this.publish();
   }
 
   dispose(): void {
@@ -146,9 +153,13 @@ class UsagePoller {
 
     const gen = this.generation;
     this.state = "loading";
-    this.inFlight = this.doFetch(model, gen).finally(() => {
+    const run = this.doFetch(model, gen);
+    this.inFlight = run;
+    try {
+      await run;
+    } finally {
       this.inFlight = undefined;
-    });
+    }
   }
 
   private async doFetch(model: AnyModel, gen: number): Promise<void> {
@@ -158,7 +169,8 @@ class UsagePoller {
         return;
       }
       if (!req) {
-        return this.fail();
+        this.fail();
+        return;
       }
 
       const res = await fetch(req.url, req.init);
@@ -166,7 +178,8 @@ class UsagePoller {
         return;
       }
       if (!res.ok) {
-        return this.fail();
+        this.fail();
+        return;
       }
 
       const json = await res.json();
@@ -180,7 +193,7 @@ class UsagePoller {
         this.fetchedAt = Date.now();
         this.publish(JSON.stringify({ windows }));
       } else {
-        this.publish(undefined);
+        this.publish();
         this.fail();
       }
     } catch {
@@ -199,7 +212,7 @@ class UsagePoller {
 
 // ── Extension entry ──
 
-export default function (pi: ExtensionAPI) {
+export default function statuslineOpenrouter(pi: ExtensionAPI) {
   let poller: UsagePoller | undefined;
 
   pi.on("session_start", (_event, ctx) => {

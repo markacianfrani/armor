@@ -42,20 +42,22 @@ import { truncateToWidth, visibleWidth } from "@mariozechner/pi-tui";
 // ── ANSI helpers ──
 
 function rgb(hex: string): string {
-  const r = parseInt(hex.slice(1, 3), 16);
-  const g = parseInt(hex.slice(3, 5), 16);
-  const b = parseInt(hex.slice(5, 7), 16);
-  return `${r};${g};${b}`;
+  const red = parseInt(hex.slice(1, 3), 16);
+  const green = parseInt(hex.slice(3, 5), 16);
+  const blue = parseInt(hex.slice(5, 7), 16);
+  return `${red};${green};${blue}`;
 }
 
 function fg(hex: string, text: string): string {
-  return `\x1b[38;2;${rgb(hex)}m${text}\x1b[0m`;
+  return `\u001B[38;2;${rgb(hex)}m${text}\u001B[0m`;
 }
 
 // ── Colors (flexoki) ──
 
-const DIM = "#6F6E69"; // base-600
-const CWD = "#9F9D96"; // base-400
+// base-600
+const DIM = "#6F6E69";
+// base-400
+const CWD = "#9F9D96";
 
 function contextColor(pct: number): string {
   if (pct < 40) {
@@ -88,7 +90,7 @@ function renderBar(percent: number): string {
 }
 
 function renderContextPercent(percent: number | null): string {
-  if (percent === null || percent === undefined) {
+  if (percent === null) {
     return fg(contextColor(0), "—");
   }
   const color = contextColor(percent);
@@ -97,7 +99,7 @@ function renderContextPercent(percent: number | null): string {
 
 function renderLeft(percent: number | null): string {
   const pctVal = percent ?? 0;
-  return renderBar(pctVal) + " " + renderContextPercent(percent);
+  return `${renderBar(pctVal)} ${renderContextPercent(percent)}`;
 }
 
 // ── Usage rendering (generic, reads from provider extension statuses) ──
@@ -133,9 +135,9 @@ function formatCountdown(resetAt: number | undefined): string | undefined {
   if (mins < 60) {
     return `${mins}m`;
   }
-  const h = Math.floor(mins / 60);
-  const m = mins % 60;
-  return m > 0 ? `${h}h${m}m` : `${h}h`;
+  const hours = Math.floor(mins / 60);
+  const minutes = mins % 60;
+  return minutes > 0 ? `${hours}h${minutes}m` : `${hours}h`;
 }
 
 function renderWindow(window: UsageWindow, barWidth: number): string {
@@ -164,8 +166,8 @@ function renderWindow(window: UsageWindow, barWidth: number): string {
 
   if (pct >= FULL_THRESHOLD) {
     const countdown = formatCountdown(window.resetAt);
-    if (countdown) {
-      return fg(color, "⧖ " + countdown);
+    if (countdown !== undefined) {
+      return fg(color, `⧖ ${countdown}`);
     }
     return fg(color, "█".repeat(barWidth));
   }
@@ -175,7 +177,7 @@ function renderWindow(window: UsageWindow, barWidth: number): string {
 }
 
 function renderUsageSegment(data: UsageData, maxWidth: number): string {
-  const windows = data.windows;
+  const { windows } = data;
   if (windows.length === 0) {
     return "";
   }
@@ -183,25 +185,24 @@ function renderUsageSegment(data: UsageData, maxWidth: number): string {
   const div = fg(DIM, "│");
 
   if (windows.length >= 2) {
-    const a = windows[0],
-      b = windows[1];
-    const full = renderWindow(a, 6) + div + renderWindow(b, 6);
+    const [first, second] = windows;
+    const full = renderWindow(first, 6) + div + renderWindow(second, 6);
     if (visibleWidth(full) <= maxWidth) {
       return full;
     }
 
-    const med = renderWindow(a, 5) + div + renderWindow(b, 5);
+    const med = renderWindow(first, 5) + div + renderWindow(second, 5);
     if (visibleWidth(med) <= maxWidth) {
       return med;
     }
 
-    const sm = renderWindow(a, 4) + div + renderWindow(b, 4);
+    const sm = renderWindow(first, 4) + div + renderWindow(second, 4);
     if (visibleWidth(sm) <= maxWidth) {
       return sm;
     }
   }
 
-  const single = windows[0];
+  const [single] = windows;
   const one = renderWindow(single, 6);
   if (visibleWidth(one) <= maxWidth) {
     return one;
@@ -215,27 +216,65 @@ function renderUsageSegment(data: UsageData, maxWidth: number): string {
   return "";
 }
 
+function readProp(target: object, key: string): unknown {
+  return Reflect.get(target, key);
+}
+
+function isUsageWindow(value: unknown): value is UsageWindow {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+  const usedPercent = readProp(value, "usedPercent");
+  const resetAt = readProp(value, "resetAt");
+  const label = readProp(value, "label");
+  const usedPercentOk = usedPercent === undefined || typeof usedPercent === "number";
+  const resetAtOk = resetAt === undefined || typeof resetAt === "number";
+  const labelOk = label === undefined || typeof label === "string";
+  return usedPercentOk && resetAtOk && labelOk;
+}
+
+function parseUsageData(value: string): UsageData | undefined {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(value);
+  } catch {
+    return undefined;
+  }
+
+  if (typeof parsed !== "object" || parsed === null) {
+    return undefined;
+  }
+
+  const windows = readProp(parsed, "windows");
+  if (!Array.isArray(windows) || windows.length === 0) {
+    return undefined;
+  }
+
+  const validWindows: UsageWindow[] = [];
+  for (const entry of windows) {
+    if (!isUsageWindow(entry)) {
+      return undefined;
+    }
+    validWindows.push(entry);
+  }
+
+  return { windows: validWindows };
+}
+
 function parseUsageStatus(
   statuses: ReadonlyMap<string, string>,
   provider: string | undefined,
 ): UsageData | undefined {
-  if (!provider) {
+  if (provider === undefined || provider === "") {
     return undefined;
   }
 
   const value = statuses.get(`usage:${provider}`);
-  if (!value) {
+  if (value === undefined || value === "") {
     return undefined;
   }
 
-  try {
-    const data = JSON.parse(value) as UsageData;
-    if (data.windows?.length > 0) {
-      return data;
-    }
-  } catch {}
-
-  return undefined;
+  return parseUsageData(value);
 }
 
 // ── Right side layout ──
@@ -265,7 +304,7 @@ function renderRight(
 
   const tail = usagePart ? modelPart + sep + usagePart : modelPart;
 
-  if (!branch) {
+  if (branch === null || branch === "") {
     return truncateToWidth(cwdPart + sep + tail, maxWidth);
   }
 
@@ -287,10 +326,12 @@ function padBetween(left: string, right: string, width: number): string {
 
 // ── Extension ──
 
-export default function (pi: ExtensionAPI) {
+export default function statusline(pi: ExtensionAPI) {
   pi.on("session_start", (_event, ctx) => {
     ctx.ui.setFooter((tui, _theme, footerData) => {
-      const unsub = footerData.onBranchChange(() => tui.requestRender());
+      const unsub = footerData.onBranchChange(() => {
+        tui.requestRender();
+      });
 
       return {
         dispose: unsub,
@@ -298,7 +339,7 @@ export default function (pi: ExtensionAPI) {
         render(width: number): string[] {
           const percent = ctx.getContextUsage()?.percent ?? null;
           const branch = footerData.getGitBranch();
-          const model = ctx.model?.id?.split("/").pop() ?? "?";
+          const model = ctx.model?.id.split("/").pop() ?? "?";
           const dir = basename(ctx.cwd);
 
           const usage = parseUsageStatus(footerData.getExtensionStatuses(), ctx.model?.provider);

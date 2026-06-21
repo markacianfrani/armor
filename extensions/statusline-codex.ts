@@ -5,8 +5,8 @@
  * Polls the ChatGPT usage API when the active model is openai-codex.
  */
 
-import type { ExtensionAPI, ModelRegistry } from "@mariozechner/pi-coding-agent";
 import type { Api, Model } from "@mariozechner/pi-ai";
+import type { ExtensionAPI, ModelRegistry } from "@mariozechner/pi-coding-agent";
 
 type AnyModel = Model<Api>;
 
@@ -19,59 +19,100 @@ async function buildRequest(
   registry: ModelRegistry,
 ): Promise<{ url: string; init: RequestInit } | null> {
   const auth = await registry.getApiKeyAndHeaders(model);
-  if (!auth.ok || !auth.apiKey) {
+  if (!auth.ok || auth.apiKey === undefined || auth.apiKey === "") {
     return null;
   }
 
-  const authClaim = jwtClaim(auth.apiKey, "https://api.openai.com/auth") as
-    | { chatgpt_account_id?: string }
-    | undefined;
-  const accountId = authClaim?.chatgpt_account_id;
-  if (!accountId) {
+  const authClaim = jwtClaim(auth.apiKey, "https://api.openai.com/auth");
+  const accountId =
+    isObject(authClaim) && typeof authClaim["chatgpt_account_id"] === "string"
+      ? authClaim["chatgpt_account_id"]
+      : undefined;
+  if (accountId === undefined || accountId === "") {
     return null;
   }
 
   return {
-    url: "https://chatgpt.com/backend-api/wham/usage",
     init: {
       headers: {
+        Accept: "application/json",
         Authorization: `Bearer ${auth.apiKey}`,
         "ChatGPT-Account-Id": accountId,
-        Accept: "application/json",
         ...auth.headers,
       },
       signal: AbortSignal.timeout(10_000),
     },
+    url: "https://chatgpt.com/backend-api/wham/usage",
   };
-}
-
-/** Normalize this provider's response into the common UsageData shape. */
-function normalize(json: unknown): UsageWindow[] | null {
-  if (!json || typeof json !== "object") {
-    return null;
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- untyped vendor API response
-  const obj = json as Record<string, any>;
-  const rl = obj["rate_limit"] ?? obj["rateLimit"] ?? obj;
-  const windows: UsageWindow[] = [];
-
-  const primary = rl["primary_window"] ?? rl["primaryWindow"];
-  if (primary && typeof primary["used_percent"] === "number") {
-    windows.push({ usedPercent: primary["used_percent"], resetAt: primary["reset_at"] });
-  }
-
-  const secondary = rl["secondary_window"] ?? rl["secondaryWindow"];
-  if (secondary && typeof secondary["used_percent"] === "number") {
-    windows.push({ usedPercent: secondary["used_percent"], resetAt: secondary["reset_at"] });
-  }
-
-  return windows.length > 0 ? windows : null;
 }
 
 interface UsageWindow {
   usedPercent: number;
   resetAt?: number;
+}
+
+/** A single window from the usage API, in either snake_case or camelCase form. */
+interface RawUsageWindow {
+  used_percent?: number;
+  usedPercent?: number;
+  reset_at?: number;
+  resetAt?: number;
+}
+
+/** The usage API response shape, tolerant of snake_case/camelCase and a nested rate_limit. */
+interface RawUsageResponse {
+  rate_limit?: RawRateLimit;
+  rateLimit?: RawRateLimit;
+  primary_window?: RawUsageWindow;
+  primaryWindow?: RawUsageWindow;
+  secondary_window?: RawUsageWindow;
+  secondaryWindow?: RawUsageWindow;
+}
+
+interface RawRateLimit {
+  primary_window?: RawUsageWindow;
+  primaryWindow?: RawUsageWindow;
+  secondary_window?: RawUsageWindow;
+  secondaryWindow?: RawUsageWindow;
+}
+
+function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+/** Pull a window's used percent and reset time, tolerating either naming convention. */
+function toUsageWindow(raw: RawUsageWindow | undefined): UsageWindow | null {
+  if (!raw) {
+    return null;
+  }
+  const usedPercent = raw.used_percent ?? raw.usedPercent;
+  if (typeof usedPercent !== "number") {
+    return null;
+  }
+  return { resetAt: raw.reset_at ?? raw.resetAt, usedPercent };
+}
+
+/** Normalize this provider's response into the common UsageData shape. */
+function normalize(json: unknown): UsageWindow[] | null {
+  if (!isObject(json)) {
+    return null;
+  }
+
+  const obj = json as RawUsageResponse;
+  const rl: RawRateLimit = obj.rate_limit ?? obj.rateLimit ?? obj;
+  const windows: UsageWindow[] = [];
+
+  const primary = toUsageWindow(rl.primary_window ?? rl.primaryWindow);
+  if (primary) {
+    windows.push(primary);
+  }
+
+  const secondary = toUsageWindow(rl.secondary_window ?? rl.secondaryWindow);
+  if (secondary) {
+    windows.push(secondary);
+  }
+
+  return windows.length > 0 ? windows : null;
 }
 
 function jwtClaim(token: string, claim: string): unknown {
@@ -80,8 +121,9 @@ function jwtClaim(token: string, claim: string): unknown {
     if (parts.length !== 3) {
       return undefined;
     }
-    const payload = parts[1].replace(/-/g, "+").replace(/_/g, "/");
-    return JSON.parse(Buffer.from(payload, "base64").toString("utf-8"))[claim];
+    const payload = parts[1].replaceAll("-", "+").replaceAll("_", "/");
+    const decoded: unknown = JSON.parse(Buffer.from(payload, "base64").toString("utf8"));
+    return isObject(decoded) ? decoded[claim] : undefined;
   } catch {
     return undefined;
   }
@@ -99,25 +141,27 @@ class UsagePoller {
   private timer: ReturnType<typeof setInterval> | undefined;
   private inFlight: Promise<void> | undefined;
   private generation = 0;
+  private readonly registry: ModelRegistry;
+  private readonly publish: (json?: string) => void;
 
-  constructor(
-    private registry: ModelRegistry,
-    private publish: (json: string | undefined) => void,
-  ) {}
+  constructor(registry: ModelRegistry, publish: (json?: string) => void) {
+    this.registry = registry;
+    this.publish = publish;
+  }
 
   activate(model: AnyModel): void {
     this.generation++;
     this.state = "idle";
     this.stopTimer();
-    this.poll(model);
-    this.timer = setInterval(() => this.poll(model), POLL_MS);
+    void this.poll(model);
+    this.timer = setInterval(() => void this.poll(model), POLL_MS);
   }
 
   deactivate(): void {
     this.generation++;
     this.state = "idle";
     this.stopTimer();
-    this.publish(undefined);
+    this.publish();
   }
 
   dispose(): void {
@@ -131,23 +175,31 @@ class UsagePoller {
     }
   }
 
-  private async poll(model: AnyModel): Promise<void> {
+  private poll(model: AnyModel): Promise<void> {
     if (this.inFlight) {
-      return;
+      return Promise.resolve();
     }
     const now = Date.now();
     if (this.state === "error" && now - this.lastErrorAt < ERROR_BACKOFF_MS) {
-      return;
+      return Promise.resolve();
     }
     if (this.state === "ready" && now - this.fetchedAt < POLL_MS) {
-      return;
+      return Promise.resolve();
     }
 
     const gen = this.generation;
     this.state = "loading";
-    this.inFlight = this.doFetch(model, gen).finally(() => {
+    const inFlight = this.runFetch(model, gen);
+    this.inFlight = inFlight;
+    return inFlight;
+  }
+
+  private async runFetch(model: AnyModel, gen: number): Promise<void> {
+    try {
+      await this.doFetch(model, gen);
+    } finally {
       this.inFlight = undefined;
-    });
+    }
   }
 
   private async doFetch(model: AnyModel, gen: number): Promise<void> {
@@ -157,7 +209,8 @@ class UsagePoller {
         return;
       }
       if (!req) {
-        return this.fail();
+        this.fail();
+        return;
       }
 
       const res = await fetch(req.url, req.init);
@@ -165,10 +218,11 @@ class UsagePoller {
         return;
       }
       if (!res.ok) {
-        return this.fail();
+        this.fail();
+        return;
       }
 
-      const json = await res.json();
+      const json: unknown = await res.json();
       if (gen !== this.generation) {
         return;
       }
@@ -195,7 +249,7 @@ class UsagePoller {
   }
 }
 
-export default function (pi: ExtensionAPI) {
+export default function statuslineCodex(pi: ExtensionAPI) {
   let poller: UsagePoller | undefined;
 
   pi.on("session_start", (_event, ctx) => {

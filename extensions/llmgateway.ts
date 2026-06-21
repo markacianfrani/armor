@@ -32,7 +32,6 @@ import { readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
-import type { AssistantMessage } from "@mariozechner/pi-ai";
 import type { ExtensionAPI, ProviderModelConfig } from "@mariozechner/pi-coding-agent";
 
 const PROVIDER = "llmgateway";
@@ -42,13 +41,9 @@ const LEGACY_API_KEY_ENV = "LLMGATEWAY_API_KEY";
 const BASE_URL_ENV = "LLM_GATEWAY_BASE_URL";
 const AUTH_PATH = join(homedir(), ".pi", "agent", "auth.json");
 const X_SOURCE = "pi-agent";
-const MODEL_DISCOVERY_TIMEOUT_MS = 8_000;
+const MODEL_DISCOVERY_TIMEOUT_MS = 8000;
 const STATUS_KEY = `usage:${PROVIDER}`;
 const WEB_SEARCH_TOOL_TYPE = "web_search";
-
-interface LlmGatewayModelsResponse {
-  data?: LlmGatewayModel[];
-}
 
 interface LlmGatewayModel {
   id?: unknown;
@@ -56,11 +51,11 @@ interface LlmGatewayModel {
   architecture?: {
     input_modalities?: unknown;
   };
-  providers?: Array<{
+  providers?: {
     reasoning?: unknown;
     vision?: unknown;
     tools?: unknown;
-  }>;
+  }[];
   pricing?: {
     prompt?: unknown;
     completion?: unknown;
@@ -91,34 +86,54 @@ const webSearchCapableModels = new Set<string>();
 
 const FALLBACK_MODELS: ProviderModelConfig[] = [
   {
+    contextWindow: 128_000,
+    cost: zeroCost(),
     id: "auto",
+    input: ["text", "image"],
+    maxTokens: 16_384,
     name: "Auto (LLM Gateway)",
     reasoning: true,
-    input: ["text", "image"],
-    cost: zeroCost(),
-    contextWindow: 128000,
-    maxTokens: 16384,
   },
 ];
 
 function baseUrl(): string {
-  return process.env[BASE_URL_ENV]?.replace(/\/+$/, "") || DEFAULT_BASE_URL;
+  const configured = process.env[BASE_URL_ENV]?.replace(/\/+$/, "");
+  return configured === undefined || configured === "" ? DEFAULT_BASE_URL : configured;
 }
 
 function zeroCost(): ProviderModelConfig["cost"] {
-  return { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 };
+  return { cacheRead: 0, cacheWrite: 0, input: 0, output: 0 };
 }
 
 function authKeyFromEnv(): string | undefined {
-  return process.env[API_KEY_ENV] || process.env[LEGACY_API_KEY_ENV];
+  const primary = process.env[API_KEY_ENV];
+  if (primary !== undefined && primary !== "") {
+    return primary;
+  }
+  return process.env[LEGACY_API_KEY_ENV];
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function isUnknownArray(value: unknown): value is unknown[] {
+  return Array.isArray(value);
+}
+
+function storedAuthEntry(parsed: unknown): StoredAuthEntry | undefined {
+  if (!isRecord(parsed)) {
+    return undefined;
+  }
+  const entry = parsed[PROVIDER];
+  return isRecord(entry) ? entry : undefined;
 }
 
 async function authKeyFromStorage(): Promise<string | undefined> {
   try {
-    const raw = await readFile(AUTH_PATH, "utf-8");
-    const auth = JSON.parse(raw) as Record<string, StoredAuthEntry>;
-    const entry = auth[PROVIDER];
-    if (!entry) {
+    const raw = await readFile(AUTH_PATH, "utf8");
+    const entry = storedAuthEntry(JSON.parse(raw));
+    if (entry === undefined) {
       return undefined;
     }
     if (entry.type === "api_key" && typeof entry.key === "string") {
@@ -140,17 +155,34 @@ function resolveStoredKey(value: string): string | undefined {
   return value;
 }
 
+function parseModelList(parsed: unknown): LlmGatewayModel[] {
+  if (!isRecord(parsed)) {
+    return [];
+  }
+  const { data } = parsed;
+  if (!isUnknownArray(data)) {
+    return [];
+  }
+  const models: LlmGatewayModel[] = [];
+  for (const item of data) {
+    if (isRecord(item)) {
+      models.push(item);
+    }
+  }
+  return models;
+}
+
 async function discoverModels(): Promise<ProviderModelConfig[]> {
   const apiKey = authKeyFromEnv() ?? (await authKeyFromStorage());
-  if (!apiKey) {
+  if (apiKey === undefined || apiKey === "") {
     return FALLBACK_MODELS;
   }
 
   try {
     const res = await fetch(`${baseUrl()}/models?exclude_deprecated=true`, {
       headers: {
-        Authorization: `Bearer ${apiKey}`,
         Accept: "application/json",
+        Authorization: `Bearer ${apiKey}`,
         "x-source": X_SOURCE,
       },
       signal: AbortSignal.timeout(MODEL_DISCOVERY_TIMEOUT_MS),
@@ -159,19 +191,21 @@ async function discoverModels(): Promise<ProviderModelConfig[]> {
       return FALLBACK_MODELS;
     }
 
-    const json = (await res.json()) as LlmGatewayModelsResponse;
-    const raw = json.data ?? [];
+    const raw = parseModelList(await res.json());
 
     // Build the web-search capability set first, before mapping to the
     // pi-ai ProviderModelConfig shape (which has no place to carry it).
     webSearchCapableModels.clear();
     for (const model of raw) {
-      if (supportsWebSearch(model)) {
-        webSearchCapableModels.add(model.id as string);
+      if (typeof model.id === "string" && supportsWebSearch(model)) {
+        webSearchCapableModels.add(model.id);
       }
     }
 
-    const models = raw.map(toProviderModel).filter(isProviderModelConfig);
+    const models = raw.flatMap((model) => {
+      const config = toProviderModel(model);
+      return config === null ? [] : [config];
+    });
     return models.length > 0 ? models : FALLBACK_MODELS;
   } catch {
     return FALLBACK_MODELS;
@@ -190,7 +224,7 @@ function supportsWebSearch(model: LlmGatewayModel): boolean {
       return true;
     }
   }
-  const providers = model.providers;
+  const { providers } = model;
   const params = model.supported_parameters;
   return (
     Array.isArray(providers) &&
@@ -200,36 +234,33 @@ function supportsWebSearch(model: LlmGatewayModel): boolean {
   );
 }
 
-function isProviderModelConfig(model: ProviderModelConfig | null): model is ProviderModelConfig {
-  return model !== null;
-}
-
 function toProviderModel(model: LlmGatewayModel): ProviderModelConfig | null {
   if (typeof model.id !== "string" || model.id.length === 0) {
     return null;
   }
-  if (model.deprecated_at || model.deactivated_at) {
+  // Skip deprecated/deactivated models; the timestamps arrive as truthy strings.
+  if (Boolean(model.deprecated_at) || Boolean(model.deactivated_at)) {
     return null;
   }
 
   return {
-    id: model.id,
-    name: typeof model.name === "string" && model.name.length > 0 ? model.name : model.id,
-    reasoning: supportsReasoning(model),
-    input: supportsVision(model) ? ["text", "image"] : ["text"],
+    contextWindow: parsePositiveInteger(model.context_length) ?? 128_000,
     cost: {
-      input: parseUsdPerMillion(model.pricing?.prompt),
-      output: parseUsdPerMillion(model.pricing?.completion),
       cacheRead: parseUsdPerMillion(model.pricing?.input_cache_read),
       cacheWrite: parseUsdPerMillion(model.pricing?.input_cache_write),
+      input: parseUsdPerMillion(model.pricing?.prompt),
+      output: parseUsdPerMillion(model.pricing?.completion),
     },
-    contextWindow: parsePositiveInteger(model.context_length) ?? 128000,
-    maxTokens: parseMaxTokens(model.per_request_limits) ?? 16384,
+    id: model.id,
+    input: supportsVision(model) ? ["text", "image"] : ["text"],
+    maxTokens: parseMaxTokens(model.per_request_limits) ?? 16_384,
+    name: typeof model.name === "string" && model.name.length > 0 ? model.name : model.id,
+    reasoning: supportsReasoning(model),
   };
 }
 
 function supportsReasoning(model: LlmGatewayModel): boolean {
-  if (model.providers?.some((provider) => provider.reasoning === true)) {
+  if (model.providers?.some((provider) => provider.reasoning === true) === true) {
     return true;
   }
   const params = model.supported_parameters;
@@ -243,7 +274,7 @@ function supportsReasoning(model: LlmGatewayModel): boolean {
 }
 
 function supportsVision(model: LlmGatewayModel): boolean {
-  if (model.providers?.some((provider) => provider.vision === true)) {
+  if (model.providers?.some((provider) => provider.vision === true) === true) {
     return true;
   }
   const inputModalities = model.architecture?.input_modalities;
@@ -278,7 +309,7 @@ function parseMaxTokens(limits: Record<string, unknown> | undefined): number | u
 
   for (const key of ["max_output_tokens", "output_tokens", "completion_tokens", "max_tokens"]) {
     const parsed = parsePositiveInteger(limits[key]);
-    if (parsed) {
+    if (parsed !== undefined) {
       return parsed;
     }
   }
@@ -299,12 +330,19 @@ function parseMaxTokens(limits: Record<string, unknown> | undefined): number | u
 // published as a second window so the user can see the toggle state in
 // the same statusline slot — no statusline.ts changes required.
 
+interface StatusContext {
+  ui: { setStatus: (key: string, value: string | undefined) => void };
+}
+
 class CostTracker {
   private total = 0;
   private active = false;
   private searchEnabled = false;
+  private readonly ctx: StatusContext;
 
-  constructor(private ctx: { ui: { setStatus: (k: string, v: string | undefined) => void } }) {}
+  constructor(ctx: StatusContext) {
+    this.ctx = ctx;
+  }
 
   setSearchEnabled(enabled: boolean): void {
     this.searchEnabled = enabled;
@@ -353,7 +391,7 @@ class CostTracker {
   }
 
   private publishCost(): void {
-    const windows: Array<{ label: string }> = [{ label: `$${this.total.toFixed(2)}` }];
+    const windows: { label: string }[] = [{ label: `$${this.total.toFixed(2)}` }];
     if (this.searchEnabled) {
       windows.push({ label: "search" });
     }
@@ -363,14 +401,14 @@ class CostTracker {
 
 function register(pi: ExtensionAPI, models: ProviderModelConfig[]): void {
   pi.registerProvider(PROVIDER, {
-    name: "LLM Gateway",
-    baseUrl: baseUrl(),
-    apiKey: `$${API_KEY_ENV}`,
     api: "openai-completions",
+    apiKey: `$${API_KEY_ENV}`,
+    baseUrl: baseUrl(),
     headers: {
       "x-source": X_SOURCE,
     },
     models,
+    name: "LLM Gateway",
   });
 }
 
@@ -380,7 +418,19 @@ async function refreshProvider(pi: ExtensionAPI): Promise<ProviderModelConfig[]>
   return models;
 }
 
-export default async function (pi: ExtensionAPI) {
+/** Resolve an on/off command argument; an unrecognized value toggles `current`. */
+function parseToggle(args: string, current: boolean): boolean {
+  const arg = args.trim().toLowerCase();
+  if (arg === "on" || arg === "1" || arg === "true") {
+    return true;
+  }
+  if (arg === "off" || arg === "0" || arg === "false") {
+    return false;
+  }
+  return !current;
+}
+
+export default async function llmGateway(pi: ExtensionAPI): Promise<void> {
   register(pi, await discoverModels());
 
   let costTracker: CostTracker | undefined;
@@ -402,24 +452,24 @@ export default async function (pi: ExtensionAPI) {
   });
 
   pi.on("message_end", (event) => {
-    if (!costTracker?.isActive()) {
+    if (costTracker?.isActive() !== true) {
       return;
     }
-    const message = event.message;
+    const { message } = event;
     if (message.role !== "assistant") {
       return;
     }
-    if ((message as AssistantMessage).provider !== PROVIDER) {
+    if (message.provider !== PROVIDER) {
       return;
     }
-    costTracker.add((message as AssistantMessage).usage.cost.total);
+    costTracker.add(message.usage.cost.total);
   });
 
   pi.on("before_provider_request", (event, ctx) => {
     if (!searchEnabled) {
       return;
     }
-    const model = ctx.model;
+    const { model } = ctx;
     if (!model || model.provider !== PROVIDER) {
       return;
     }
@@ -429,14 +479,18 @@ export default async function (pi: ExtensionAPI) {
 
     // payload is the OpenAI request body built by pi-ai. Append (or keep) the
     // `web_search` tool entry. Idempotent — re-emit on retry safely.
-    const payload = event.payload as { tools?: Array<Record<string, unknown>> } | undefined;
-    if (!payload || !Array.isArray(payload.tools)) {
+    const { payload } = event;
+    if (!isRecord(payload)) {
       return;
     }
-    if (payload.tools.some((tool) => tool["type"] === WEB_SEARCH_TOOL_TYPE)) {
+    const { tools } = payload;
+    if (!isUnknownArray(tools)) {
       return;
     }
-    payload.tools.push({ type: WEB_SEARCH_TOOL_TYPE });
+    if (tools.some((tool) => isRecord(tool) && tool["type"] === WEB_SEARCH_TOOL_TYPE)) {
+      return;
+    }
+    tools.push({ type: WEB_SEARCH_TOOL_TYPE });
   });
 
   pi.on("session_shutdown", () => {
@@ -447,27 +501,22 @@ export default async function (pi: ExtensionAPI) {
 
   pi.registerCommand("llmgateway-search", {
     description: "Toggle LLM Gateway native web search (on/off) for this session",
-    handler: async (args, ctx) => {
-      const arg = args.trim().toLowerCase();
-      const next =
-        arg === "on" || arg === "1" || arg === "true"
-          ? true
-          : arg === "off" || arg === "0" || arg === "false"
-            ? false
-            : !searchEnabled;
+    handler: (args, ctx) => {
+      const next = parseToggle(args, searchEnabled);
 
-      const model = ctx.model;
+      const { model } = ctx;
       if (next && model?.provider === PROVIDER && !webSearchCapableModels.has(model.id)) {
         ctx.ui.notify(
           `Model ${model.id} does not support native web search on LLM Gateway. Pick a different model.`,
           "warning",
         );
-        return;
+        return Promise.resolve();
       }
 
       searchEnabled = next;
       costTracker?.setSearchEnabled(next);
       ctx.ui.notify(`LLM Gateway web search ${next ? "enabled" : "disabled"}`, "info");
+      return Promise.resolve();
     },
   });
 

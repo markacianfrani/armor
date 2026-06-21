@@ -5,21 +5,35 @@
  * Polls the Copilot internal API when the active model is github-copilot.
  */
 
-import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { readFile } from "node:fs/promises";
-import { join } from "node:path";
 import { homedir } from "node:os";
+import { join } from "node:path";
+
+import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 
 const PROVIDER = "github-copilot";
 const STATUS_KEY = `usage:${PROVIDER}`;
 const AUTH_PATH = join(homedir(), ".pi", "agent", "auth.json");
 
+/** True when value is a non-null object usable as a string-keyed record. */
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
 /** Read the GitHub OAuth token (refresh) from pi's auth storage. */
 async function getGitHubToken(): Promise<string | null> {
   try {
-    const raw = await readFile(AUTH_PATH, "utf-8");
-    const auth = JSON.parse(raw) as Record<string, { refresh?: string }>;
-    return auth[PROVIDER]?.refresh ?? null;
+    const raw = await readFile(AUTH_PATH, "utf8");
+    const parsed: unknown = JSON.parse(raw);
+    if (!isRecord(parsed)) {
+      return null;
+    }
+    const entry = parsed[PROVIDER];
+    if (!isRecord(entry)) {
+      return null;
+    }
+    const { refresh } = entry;
+    return typeof refresh === "string" ? refresh : null;
   } catch {
     return null;
   }
@@ -27,53 +41,62 @@ async function getGitHubToken(): Promise<string | null> {
 
 async function buildRequest(): Promise<{ url: string; init: RequestInit } | null> {
   const token = await getGitHubToken();
-  if (!token) {
+  if (token === null || token === "") {
     return null;
   }
 
   return {
-    url: "https://api.github.com/copilot_internal/user",
     init: {
       headers: {
-        Authorization: `token ${token}`,
         Accept: "application/json",
-        "User-Agent": "GitHubCopilotChat/0.35.0",
-        "Editor-Version": "vscode/1.107.0",
-        "Editor-Plugin-Version": "copilot-chat/0.35.0",
+        Authorization: `token ${token}`,
         "Copilot-Integration-Id": "vscode-chat",
+        "Editor-Plugin-Version": "copilot-chat/0.35.0",
+        "Editor-Version": "vscode/1.107.0",
+        "User-Agent": "GitHubCopilotChat/0.35.0",
         "X-GitHub-Api-Version": "2025-04-01",
       },
       signal: AbortSignal.timeout(10_000),
     },
+    url: "https://api.github.com/copilot_internal/user",
   };
 }
 
+/** Read a string property off an unknown object, or undefined if absent/wrong type. */
+function readString(obj: Record<string, unknown>, key: string): string | undefined {
+  const value = obj[key];
+  return typeof value === "string" ? value : undefined;
+}
+
 function normalize(json: unknown): UsageWindow[] | null {
-  if (!json || typeof json !== "object") {
+  if (!isRecord(json)) {
     return null;
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- untyped vendor API response
-  const obj = json as Record<string, any>;
-  const snapshots = obj["quota_snapshots"] ?? obj["quotaSnapshots"];
-  const resetDate = (obj["quota_reset_date_utc"] ?? obj["quota_reset_date"]) as string | undefined;
-
-  if (!snapshots || typeof snapshots !== "object") {
+  const rawSnapshots = json["quota_snapshots"] ?? json["quotaSnapshots"];
+  if (!isRecord(rawSnapshots)) {
     return null;
   }
 
-  const resetAt = resetDate ? Math.floor(new Date(resetDate).getTime() / 1000) : undefined;
+  const resetDate =
+    readString(json, "quota_reset_date_utc") ?? readString(json, "quota_reset_date");
+  const resetAt =
+    resetDate === undefined ? undefined : Math.floor(new Date(resetDate).getTime() / 1000);
 
   // only care about premium_interactions — chat/completions are often unlimited
-  const premium = snapshots["premium_interactions"];
-  if (!premium || typeof premium["percent_remaining"] !== "number") {
+  const premium = rawSnapshots["premium_interactions"];
+  if (!isRecord(premium)) {
+    return null;
+  }
+  const percentRemaining = premium["percent_remaining"];
+  if (typeof percentRemaining !== "number") {
     return null;
   }
 
   return [
     {
-      usedPercent: 100 - premium["percent_remaining"],
       resetAt,
+      usedPercent: 100 - percentRemaining,
     },
   ];
 }
@@ -95,22 +118,27 @@ class UsagePoller {
   private timer: ReturnType<typeof setInterval> | undefined;
   private inFlight: Promise<void> | undefined;
   private generation = 0;
+  private readonly publish: (json?: string) => void;
 
-  constructor(private publish: (json: string | undefined) => void) {}
+  constructor(publish: (json?: string) => void) {
+    this.publish = publish;
+  }
 
   activate(): void {
     this.generation++;
     this.state = "idle";
     this.stopTimer();
     this.poll();
-    this.timer = setInterval(() => this.poll(), POLL_MS);
+    this.timer = setInterval(() => {
+      this.poll();
+    }, POLL_MS);
   }
 
   deactivate(): void {
     this.generation++;
     this.state = "idle";
     this.stopTimer();
-    this.publish(undefined);
+    this.publish();
   }
 
   dispose(): void {
@@ -124,7 +152,7 @@ class UsagePoller {
     }
   }
 
-  private async poll(): Promise<void> {
+  private poll(): void {
     if (this.inFlight) {
       return;
     }
@@ -138,9 +166,15 @@ class UsagePoller {
 
     const gen = this.generation;
     this.state = "loading";
-    this.inFlight = this.doFetch(gen).finally(() => {
+    this.inFlight = this.runFetch(gen);
+  }
+
+  private async runFetch(gen: number): Promise<void> {
+    try {
+      await this.doFetch(gen);
+    } finally {
       this.inFlight = undefined;
-    });
+    }
   }
 
   private async doFetch(gen: number): Promise<void> {
@@ -150,7 +184,8 @@ class UsagePoller {
         return;
       }
       if (!req) {
-        return this.fail();
+        this.fail();
+        return;
       }
 
       const res = await fetch(req.url, req.init);
@@ -158,7 +193,8 @@ class UsagePoller {
         return;
       }
       if (!res.ok) {
-        return this.fail();
+        this.fail();
+        return;
       }
 
       const json = await res.json();
@@ -188,7 +224,7 @@ class UsagePoller {
   }
 }
 
-export default function (pi: ExtensionAPI) {
+export default function statuslineCopilot(pi: ExtensionAPI) {
   let poller: UsagePoller | undefined;
 
   pi.on("session_start", (_event, ctx) => {

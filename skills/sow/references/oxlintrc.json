@@ -27,6 +27,7 @@
     "init-declarations": "off",
     "func-style": "off",
     "no-magic-numbers": "off",
+    "capitalized-comments": "off",
     "typescript/no-implied-eval": "off",
     "typescript/prefer-promise-reject-errors": "off",
     "typescript/require-await": "off",

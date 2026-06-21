@@ -11,8 +11,8 @@
  * TIME_LIMIT resets every ~1 minute so polling it is pointless.
  */
 
-import type { ExtensionAPI, ModelRegistry } from "@mariozechner/pi-coding-agent";
 import type { Api, Model } from "@mariozechner/pi-ai";
+import type { ExtensionAPI, ModelRegistry } from "@mariozechner/pi-coding-agent";
 
 type AnyModel = Model<Api>;
 
@@ -26,20 +26,20 @@ async function buildRequest(
   registry: ModelRegistry,
 ): Promise<{ url: string; init: RequestInit } | null> {
   const auth = await registry.getApiKeyAndHeaders(model);
-  if (!auth.ok || !auth.apiKey) {
+  if (!auth.ok || auth.apiKey === undefined || auth.apiKey === "") {
     return null;
   }
 
   return {
-    url: "https://api.z.ai/api/monitor/usage/quota/limit",
     init: {
       headers: {
-        Authorization: `Bearer ${auth.apiKey}`,
         Accept: "application/json",
+        Authorization: `Bearer ${auth.apiKey}`,
         ...auth.headers,
       },
       signal: AbortSignal.timeout(10_000),
     },
+    url: "https://api.z.ai/api/monitor/usage/quota/limit",
   };
 }
 
@@ -50,76 +50,119 @@ interface UsageWindow {
   resetAt?: number;
 }
 
+interface QuotaLimit {
+  type?: string;
+  usage?: number;
+  remaining?: number;
+  currentValue?: number;
+  percentage?: number;
+  nextResetTime?: number;
+}
+
+interface QuotaResponse {
+  code?: number;
+  success?: boolean;
+  data?: { limits?: QuotaLimit[] };
+}
+
+function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function asNumber(value: unknown): number | undefined {
+  return typeof value === "number" ? value : undefined;
+}
+
+function asQuotaLimit(value: unknown): QuotaLimit | null {
+  if (!isObject(value)) {
+    return null;
+  }
+  return {
+    currentValue: asNumber(value["currentValue"]),
+    nextResetTime: asNumber(value["nextResetTime"]),
+    percentage: asNumber(value["percentage"]),
+    remaining: asNumber(value["remaining"]),
+    type: typeof value["type"] === "string" ? value["type"] : undefined,
+    usage: asNumber(value["usage"]),
+  };
+}
+
+function parseQuotaResponse(json: unknown): QuotaResponse | null {
+  if (!isObject(json)) {
+    return null;
+  }
+  const { data } = json;
+  const rawLimits = isObject(data) ? data["limits"] : undefined;
+  const limits = Array.isArray(rawLimits)
+    ? rawLimits.flatMap((entry) => {
+        const limit = asQuotaLimit(entry);
+        return limit === null ? [] : [limit];
+      })
+    : undefined;
+  return {
+    code: asNumber(json["code"]),
+    data: { limits },
+    success: json["success"] === true,
+  };
+}
+
 function normalize(json: unknown): UsageWindow[] | null {
-  if (!json || typeof json !== "object") {
+  const parsed = parseQuotaResponse(json);
+  if (parsed === null || parsed.code !== 200 || parsed.success !== true) {
     return null;
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- untyped vendor API response
-  const obj = json as Record<string, any>;
-  if (obj["code"] !== 200 || !obj["success"]) {
+  const limits = parsed.data?.limits;
+  if (limits === undefined) {
     return null;
   }
-
-  const data = obj["data"];
-  if (!data || !Array.isArray(data["limits"])) {
-    return null;
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- untyped vendor API limits array
-  const limits = data["limits"] as Record<string, any>[];
 
   for (const limit of limits) {
-    if (limit["type"] !== "TOKENS_LIMIT") {
-      continue;
-    }
-    const window = parseLimit(limit);
-    if (window) {
-      return [window];
+    if (limit.type === "TOKENS_LIMIT") {
+      const window = parseLimit(limit);
+      if (window !== null) {
+        return [window];
+      }
     }
   }
 
   return null;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- untyped vendor API limit entry
-function parseLimit(limit: Record<string, any>): UsageWindow | null {
+function parseLimit(limit: QuotaLimit): UsageWindow | null {
   const pct = computeUsedPercent(limit);
   if (pct === null) {
     return null;
   }
 
-  const resetMs = limit["nextResetTime"];
+  const resetMs = limit.nextResetTime;
   return {
     usedPercent: pct,
-    ...(resetMs !== null && typeof resetMs === "number"
-      ? { resetAt: Math.floor(resetMs / 1000) }
-      : {}),
+    ...(resetMs !== undefined ? { resetAt: Math.floor(resetMs / 1000) } : {}),
   };
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- untyped vendor API limit entry
-function computeUsedPercent(limit: Record<string, any>): number | null {
+function computeUsedPercent(limit: QuotaLimit): number | null {
   // Prefer computed from usage/remaining for accuracy, fall back to percentage field.
-  const usage = limit["usage"];
-  if (typeof usage === "number" && usage > 0) {
+  const { usage } = limit;
+  if (usage !== undefined && usage > 0) {
     let used: number | undefined;
-    if (typeof limit["remaining"] === "number") {
-      const fromRemaining = usage - limit["remaining"];
+    if (limit.remaining !== undefined) {
+      const fromRemaining = usage - limit.remaining;
       used =
-        typeof limit["currentValue"] === "number"
-          ? Math.max(fromRemaining, limit["currentValue"])
+        limit.currentValue !== undefined
+          ? Math.max(fromRemaining, limit.currentValue)
           : fromRemaining;
-    } else if (typeof limit["currentValue"] === "number") {
-      used = limit["currentValue"];
+    } else if (limit.currentValue !== undefined) {
+      used = limit.currentValue;
     }
     if (used !== undefined) {
       return Math.min(100, Math.max(0, (Math.max(0, used) / usage) * 100));
     }
   }
 
-  if (typeof limit["percentage"] === "number") {
-    return limit["percentage"];
+  if (limit.percentage !== undefined) {
+    return limit.percentage;
   }
 
   return null;
@@ -133,6 +176,8 @@ const ERROR_BACKOFF_MS = 120_000;
 type PollState = "idle" | "loading" | "ready" | "error";
 
 class UsagePoller {
+  private readonly registry: ModelRegistry;
+  private readonly publish: (json?: string) => void;
   private state: PollState = "idle";
   private fetchedAt = 0;
   private lastErrorAt = 0;
@@ -140,24 +185,26 @@ class UsagePoller {
   private inFlight: Promise<void> | undefined;
   private generation = 0;
 
-  constructor(
-    private registry: ModelRegistry,
-    private publish: (json: string | undefined) => void,
-  ) {}
+  constructor(registry: ModelRegistry, publish: (json?: string) => void) {
+    this.registry = registry;
+    this.publish = publish;
+  }
 
   activate(model: AnyModel): void {
     this.generation++;
     this.state = "idle";
     this.stopTimer();
     this.poll(model);
-    this.timer = setInterval(() => this.poll(model), POLL_MS);
+    this.timer = setInterval(() => {
+      this.poll(model);
+    }, POLL_MS);
   }
 
   deactivate(): void {
     this.generation++;
     this.state = "idle";
     this.stopTimer();
-    this.publish(undefined);
+    this.publish();
   }
 
   dispose(): void {
@@ -171,8 +218,8 @@ class UsagePoller {
     }
   }
 
-  private async poll(model: AnyModel): Promise<void> {
-    if (this.inFlight) {
+  private poll(model: AnyModel): void {
+    if (this.inFlight !== undefined) {
       return;
     }
     const now = Date.now();
@@ -185,9 +232,15 @@ class UsagePoller {
 
     const gen = this.generation;
     this.state = "loading";
-    this.inFlight = this.doFetch(model, gen).finally(() => {
+    this.inFlight = this.runFetch(model, gen);
+  }
+
+  private async runFetch(model: AnyModel, gen: number): Promise<void> {
+    try {
+      await this.doFetch(model, gen);
+    } finally {
       this.inFlight = undefined;
-    });
+    }
   }
 
   private async doFetch(model: AnyModel, gen: number): Promise<void> {
@@ -197,7 +250,8 @@ class UsagePoller {
         return;
       }
       if (!req) {
-        return this.fail();
+        this.fail();
+        return;
       }
 
       const res = await fetch(req.url, req.init);
@@ -205,7 +259,8 @@ class UsagePoller {
         return;
       }
       if (!res.ok) {
-        return this.fail();
+        this.fail();
+        return;
       }
 
       const json = await res.json();
@@ -237,7 +292,7 @@ class UsagePoller {
 
 // ── Extension entry ──
 
-export default function (pi: ExtensionAPI) {
+export default function statuslineZai(pi: ExtensionAPI) {
   let poller: UsagePoller | undefined;
 
   pi.on("session_start", (_event, ctx) => {
