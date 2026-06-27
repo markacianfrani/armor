@@ -16,11 +16,13 @@ Both passes are beatrix, but in separate, fresh contexts. The context that just 
 ## Workflow
 
 1. **Determine scope**
+
    - `git diff main --name-only` for the changed files, `git diff main` for the changes.
    - If `$ARGUMENTS` names files, scope to those. If it names a base ref, diff against that instead of `main`.
    - If nothing changed, say so and stop.
 
 2. **Pass 1 — Find**
+
    - Launch the **beatrix** agent on the diff and changed files.
    - It returns candidate findings, each with a location, severity, category, the vulnerable code, an exploit chain, and a proposed fix.
    - If beatrix finds nothing, report a clean review and stop. No second pass needed.
