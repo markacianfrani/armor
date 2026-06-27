@@ -244,6 +244,7 @@ function toProviderModel(model: LlmGatewayModel): ProviderModelConfig | null {
   }
 
   return {
+    compat: openAiCompatForModel(model),
     contextWindow: parsePositiveInteger(model.context_length) ?? 128_000,
     cost: {
       cacheRead: parseUsdPerMillion(model.pricing?.input_cache_read),
@@ -257,6 +258,42 @@ function toProviderModel(model: LlmGatewayModel): ProviderModelConfig | null {
     name: typeof model.name === "string" && model.name.length > 0 ? model.name : model.id,
     reasoning: supportsReasoning(model),
   };
+}
+
+function openAiCompatForModel(model: LlmGatewayModel): ProviderModelConfig["compat"] {
+  const params = supportedParameterSet(model.supported_parameters);
+  const compat: NonNullable<ProviderModelConfig["compat"]> = {
+    // LLM Gateway fronts many non-OpenAI chat-completions providers. Pi's
+    // default for a custom OpenAI-compatible provider sends the system prompt
+    // as a `developer` message for reasoning models, but models like
+    // `kimi-k2.7-code` reject that role with `tokenization failed`.
+    supportsDeveloperRole: false,
+  };
+
+  if (params.has("max_tokens") && !params.has("max_completion_tokens")) {
+    compat.maxTokensField = "max_tokens";
+  }
+
+  if (params.has("reasoning")) {
+    // LLM Gateway documents the unified `reasoning: { effort }` object, and
+    // model discovery reports it for models that do not accept OpenAI's
+    // top-level `reasoning_effort` field.
+    compat.thinkingFormat = "openrouter";
+    compat.supportsReasoningEffort = false;
+  } else if (params.has("reasoning_effort")) {
+    compat.supportsReasoningEffort = true;
+  } else {
+    compat.supportsReasoningEffort = false;
+  }
+
+  return compat;
+}
+
+function supportedParameterSet(value: unknown): Set<string> {
+  if (!Array.isArray(value)) {
+    return new Set();
+  }
+  return new Set(value.filter((param): param is string => typeof param === "string"));
 }
 
 function supportsReasoning(model: LlmGatewayModel): boolean {
