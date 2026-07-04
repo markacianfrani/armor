@@ -45,6 +45,13 @@ const MODEL_DISCOVERY_TIMEOUT_MS = 8000;
 const STATUS_KEY = `usage:${PROVIDER}`;
 const WEB_SEARCH_TOOL_TYPE = "web_search";
 
+// LLM Gateway forwards Gemini-family models to Google's tool schema parser.
+// That parser rejects non-string enum values in function declarations (for
+// example Type.Literal(false) becomes `{ type: "boolean", enum: [false] }`).
+// Pi validates tool arguments locally after the model calls a tool, so for the
+// provider-facing schema we can safely widen those literals to their base type.
+const GEMINI_MODEL_PATTERN = /(?:^|[/:])gemini[-/:]/i;
+
 interface LlmGatewayModel {
   id?: unknown;
   name?: unknown;
@@ -119,6 +126,50 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function isUnknownArray(value: unknown): value is unknown[] {
   return Array.isArray(value);
+}
+
+function isGeminiModelId(modelId: string): boolean {
+  return GEMINI_MODEL_PATTERN.test(modelId);
+}
+
+function sanitizeSchemaForGemini(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map((item) => sanitizeSchemaForGemini(item));
+  }
+  if (!isRecord(value)) {
+    return value;
+  }
+
+  const sanitized: Record<string, unknown> = {};
+  for (const [key, child] of Object.entries(value)) {
+    if (key === "enum" && Array.isArray(child)) {
+      const stringValues = child.filter((item): item is string => typeof item === "string");
+      if (stringValues.length === child.length) {
+        sanitized[key] = child;
+      } else if (stringValues.length > 0) {
+        sanitized[key] = stringValues;
+      }
+    } else {
+      sanitized[key] = sanitizeSchemaForGemini(child);
+    }
+  }
+  return sanitized;
+}
+
+function sanitizeToolsForGemini(payload: unknown): void {
+  if (!isRecord(payload) || !isUnknownArray(payload["tools"])) {
+    return;
+  }
+
+  for (const tool of payload["tools"]) {
+    if (
+      isRecord(tool) &&
+      isRecord(tool["function"]) &&
+      tool["function"]["parameters"] !== undefined
+    ) {
+      tool["function"]["parameters"] = sanitizeSchemaForGemini(tool["function"]["parameters"]);
+    }
+  }
 }
 
 function storedAuthEntry(parsed: unknown): StoredAuthEntry | undefined {
@@ -503,31 +554,36 @@ export default async function llmGateway(pi: ExtensionAPI): Promise<void> {
   });
 
   pi.on("before_provider_request", (event, ctx) => {
-    if (!searchEnabled) {
-      return;
-    }
     const { model } = ctx;
     if (!model || model.provider !== PROVIDER) {
       return;
     }
-    if (!webSearchCapableModels.has(model.id)) {
-      return;
+
+    const { payload } = event;
+    let modified = false;
+    if (isGeminiModelId(model.id)) {
+      sanitizeToolsForGemini(payload);
+      modified = true;
+    }
+
+    if (!searchEnabled || !webSearchCapableModels.has(model.id)) {
+      return modified ? payload : undefined;
     }
 
     // payload is the OpenAI request body built by pi-ai. Append (or keep) the
     // `web_search` tool entry. Idempotent — re-emit on retry safely.
-    const { payload } = event;
     if (!isRecord(payload)) {
-      return;
+      return modified ? payload : undefined;
     }
     const { tools } = payload;
     if (!isUnknownArray(tools)) {
-      return;
+      return modified ? payload : undefined;
     }
     if (tools.some((tool) => isRecord(tool) && tool["type"] === WEB_SEARCH_TOOL_TYPE)) {
-      return;
+      return modified ? payload : undefined;
     }
     tools.push({ type: WEB_SEARCH_TOOL_TYPE });
+    return payload;
   });
 
   pi.on("session_shutdown", () => {
