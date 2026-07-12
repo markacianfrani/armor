@@ -58,26 +58,29 @@ Never bury a redesign under a list of local fixes.
 
 ## 6. Report
 
+Group findings by severity. Tag each with the agent that found it. One finding per line — a sentence and a `file:line`, not a paragraph. If a finding needs more than a line to justify, it is a design decision, not a fix.
+
 ```markdown
 # Review Summary
 
-## Fix now (minimum set: N edits)
-- The smallest set of changes worth making. Effort-sorted.
+## Critical
+- [agent] Issue — file:line
 
 ## Important
-- [agent]: Issue [file:line]
+- [agent] Issue — file:line
+
+## Suggestions
+- [agent] Issue — file:line
 
 ## Design decisions (yours)
-- Anything from the altitude check, and any genuine judgment calls.
+- Only if the altitude check fired: the premise, the two paths, your rec.
 
 ## Needs verification
 - Finding + the one command/log that would confirm it.
 
-## One-liners
-- Additive/optional suggestions, one line each.
+## Strengths
+- One line, if any.
 ```
-
-Strengths: one line, if any.
 
 ## 7. On Approval
 
