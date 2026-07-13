@@ -45,20 +45,9 @@ Before a finding reaches the report:
 - **Defensive-code filter.** For low-probability paths, prefer an honest comment over new guard code. Additive suggestions — wraps, shared constants, extra tests for unlikely paths, speculative narrowing — get one line at the bottom of the report, not equal billing with real issues. When agents conflict, paine's deletion instinct breaks the tie.
 - **Jargon gate.** Findings are written in plain English. No coined shorthand. Any text that will land in code — comments, test names — is written fresh in the project's voice, never copied from an agent's finding.
 
-## 5. Altitude Check
+## 5. Report
 
-If two or more Critical/Important findings share one root cause, or a proposed fix needs a new primitive or a design call, stop patching. That is a design smell, not a fix list. Present it as a decision:
-
-- The premise the findings are patching around
-- The patch path and what it costs
-- The redesign path and what it costs
-- Your recommendation
-
-Never bury a redesign under a list of local fixes.
-
-## 6. Report
-
-Group findings by severity. Tag each with the agent that found it. One finding per line — a sentence and a `file:line`, not a paragraph. If a finding needs more than a line to justify, it is a design decision, not a fix.
+Group findings by severity. Tag each with the agent that found it. One finding per line — a sentence and a `file:line`, not a paragraph.
 
 ```markdown
 # Review Summary
@@ -72,17 +61,11 @@ Group findings by severity. Tag each with the agent that found it. One finding p
 ## Suggestions
 - [agent] Issue — file:line
 
-## Design decisions (yours)
-- Only if the altitude check fired: the premise, the two paths, your rec.
-
 ## Needs verification
 - Finding + the one command/log that would confirm it.
-
-## Strengths
-- One line, if any.
 ```
 
-## 7. On Approval
+## 6. On Approval
 
 - Fan out the fixes in parallel with subagents by default. Don't wait to be asked.
 - Right-size the work: no test scaffolding, fixtures, or design writeups for a fix under ~10 lines unless the user asks.
