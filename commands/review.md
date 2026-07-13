@@ -1,83 +1,157 @@
 ---
 description: "Review recent changes using specialized agents"
-argument-hint: "[scope and focus, e.g. 'this branch against main, big stuff only']"
+argument-hint: "[review-aspects]"
 ---
 
 # Review Recent Changes
 
-Review code changes using specialized agents, each focused on one aspect of quality.
+Review code changes on the current branch using specialized agents, each focusing on a different aspect of code quality.
 
-**Scope and focus:** "$ARGUMENTS"
+**Review Aspects (optional):** "$ARGUMENTS"
 
-Arguments describe scope (what to diff against) and intent (severity threshold, topic focus like "security stuff" or "big shit only"). They are not aspect keywords.
+## Review Workflow:
 
-## 1. Resolve Scope
+1. **Determine Review Scope**
+   - Run `git diff main --name-only` to identify changed files
+   - Run `git diff main` to see the actual changes
+   - Parse arguments to see if user requested specific review aspects
+   - Default: Run all applicable reviews
 
-- `git fetch origin` first.
-- Determine the base ref. Default `main`, unless the arguments name another branch.
-- Diff against the merge-base, never the bare base branch: `git diff $(git merge-base HEAD origin/<base>)`.
-- Stop and tell the user if the branch is far behind origin/<base>, or if local <base> has diverged from origin. A stale base produces false criticals that are really the base's own changes. Offer a rebase or fresh pull first.
-- Note the deployment context: production service, CLI/dev tool, or POC. Pass it to every agent. Findings in non-production surfaces get downgraded, not dropped.
+2. **Available Review Aspects:**
+   - **api** - Review REST endpoints, HTTP semantics, API testing (steiner)
+   - **errors** - Check error handling for silent failures (kimahri)
+   - **types** - Analyze type design and invariants (auron)
+   - **tests** - Interrogate test quality; flag tautology, over-mocking, framework-testing, vague names (lulu)
+   - **simplify** - Simplify code for clarity and maintainability (paine)
+   - risk - Identify risky parts of the codebase that may need extra attention
+   - **all** - Run all applicable reviews (default)
 
-**Small-diff fast path:** if the diff is small (roughly under 150 changed lines, or docs/config only), review it inline yourself. Skip the agent fan-out entirely.
+3. **Determine Applicable Reviews**
 
-## 2. Launch Agents
+   Based on changes:
+   - **If API routes/endpoints changed**: steiner
+   - **If error handling changed** (try/catch, fallbacks): kimahri
+   - **If types added/modified**: auron
+   - **If test files changed** (`*.spec.*`, `*_spec.rb`, `*_test.*`, `test_*.py`): lulu
+   - **Always run last**: paine (polish and refine)
 
-Launch all applicable agents in parallel:
+4. **Launch Review Agents**
 
-- **steiner** — if API routes/endpoints changed
-- **kimahri** — if error handling changed (try/catch, fallbacks)
-- **auron** — if types added/modified
-- **lulu** — if test files changed. Include: flag arbitrary timeouts (sleep, waitForTimeout) papering over flakiness; prefer deterministic waits. Modified test logic is riskier than renames — investigate it.
-- **paine** — always
+   **Parallel approach** (default):
+   - Launch all applicable agents simultaneously in parallel
+   - Faster for comprehensive review
+   - Results come back together
 
-Tell each agent the deployment context and the severity threshold from the arguments.
+   **Sequential approach** (if user specifies):
+   - One agent at a time
+   - Easier to understand and act on
 
-## 3. Evidence Gate
+5. **E2E Test Stability**
 
-Before a finding reaches the report:
+   Scan test changes for:
+   - Arbitrary timeouts (sleep, waitForTimeout, setTimeout) used to fix flakiness
+   - Missing root-cause fixes (awaiting actual UI state, network idle, or data readiness)
+   - Retry loops without actionable failure output
 
-- No Critical or Blocking verdict unless it is verified against this repo's actual code or runtime. If the ground truth lives somewhere you can't see — a live connect log, the deployment environment, an external service's real behavior — report it as **Needs verification** and name the one command or log that would settle it. "I can't confirm this from here" and "Critical" never describe the same finding.
-- Before asking the user a question, try to answer it yourself by tracing the code. Only ask what code cannot answer: data provenance, intent, product decisions.
+   Prefer deterministic waits and fix underlying causes instead of padding with time.
 
-## 4. Filter
+6. Identify risk
 
-- **Defensive-code filter.** For low-probability paths, prefer an honest comment over new guard code. Additive suggestions — wraps, shared constants, extra tests for unlikely paths, speculative narrowing — get one line at the bottom of the report, not equal billing with real issues. When agents conflict, paine's deletion instinct breaks the tie.
-- **Jargon gate.** Findings are written in plain English. No coined shorthand. Any text that will land in code — comments, test names — is written fresh in the project's voice, never copied from an agent's finding.
+- Immediately look at the test changes. Were any tests modified? If so, investigate the changes. Changes to the underlying logic are much more risky than renaming methods.
+- Present the user with a report of the riskiest changes to review.
 
-## 5. Report
+7. **Aggregate Results**
 
-Group findings by severity. Tag each with the agent that found it. One finding per line — a sentence and a `file:line`, not a paragraph.
+   After agents complete, summarize:
+   - **Critical Issues** (must fix)
+   - **Important Issues** (should fix)
+   - **Suggestions** (nice to have)
+   - **Strengths** (what's done well)
 
-```markdown
-# Review Summary
+8. **Provide Action Plan**
 
-## Critical
-- [agent] Issue — file:line
+   ```markdown
+   # Review Summary
 
-## Important
-- [agent] Issue — file:line
+   ## Critical Issues (X found)
 
-## Suggestions
-- [agent] Issue — file:line
+   - [agent-name]: Issue description [file:line]
 
-## Needs verification
-- Finding + the one command/log that would confirm it.
+   ## Important Issues (X found)
+
+   - [agent-name]: Issue description [file:line]
+
+   ## Suggestions (X found)
+
+   - [agent-name]: Suggestion [file:line]
+
+   ## Strengths
+
+   - What's well-done in these changes
+
+   ## Next Steps
+
+   1.  Present every action item to the user for approval
+   2.  Fix critical issues first
+   3.  Address important issues
+   4.  Consider suggestions
+   5.  Re-run review after fixes
+   ```
+
+## Usage Examples:
+
+**Full review (default):**
+
+```
+/review
 ```
 
-## 6. On Approval
+**Specific aspects:**
 
-- Fan out the fixes in parallel with subagents by default. Don't wait to be asked.
-- Right-size the work: no test scaffolding, fixtures, or design writeups for a fix under ~10 lines unless the user asks.
+```
+/review errors types
+# Reviews only error handling and type design
 
-## Agent Descriptions
+/review api
+# Reviews only API/REST changes
 
-**steiner** (api): REST conventions, HTTP semantics, status codes, API test coverage. Stripe as the standard.
+/review simplify
+# Just simplifies code
+```
 
-**kimahri** (errors): silent failures, catch blocks, error logging, user feedback on errors.
+## Agent Descriptions:
 
-**auron** (types): encapsulation, invariant expression, flags over-engineered types.
+**steiner** (api):
 
-**lulu** (tests): ranks each test by the regression it protects; flags tautologies, over-mocking, framework-testing, vague names. Asks; doesn't rewrite.
+- REST conventions and HTTP semantics
+- Status codes, naming consistency
+- API test coverage
+- Stripe API as gold standard
 
-**paine** (simplify): reduces complexity by deletion and consolidation. Preserves behavior.
+**kimahri** (errors):
+
+- Finds silent failures
+- Reviews catch blocks
+- Checks error logging
+- Validates user feedback on errors
+
+**auron** (types):
+
+- Analyzes type encapsulation
+- Reviews invariant expression
+- Rates type design quality
+- Flags over-engineered types
+
+**lulu** (tests):
+
+- Ranks every test in the diff by the regression it actually protects
+- Flags tautologies, over-mocking, framework-testing, wrong-layer tests
+- Calls out vague `it` names that won't help the next engineer
+- Surfaces questions for the author; doesn't rewrite
+
+**paine** (simplify):
+
+- Simplifies complex code
+- Improves clarity and readability
+- Applies project standards
+- Preserves functionality
