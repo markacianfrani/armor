@@ -126,6 +126,7 @@ To turn type-aware linting on for a project:
 2. Add the rules to `.oxlintrc.json`:
 
    ```json
+   "typescript/no-deprecated": "error",
    "typescript/no-floating-promises": "error",
    "typescript/no-misused-promises": "error",
    "typescript/no-unnecessary-type-assertion": "error",
@@ -133,6 +134,8 @@ To turn type-aware linting on for a project:
    "typescript/prefer-nullish-coalescing": "error",
    "typescript/prefer-optional-chain": "error"
    ```
+
+   `no-deprecated` belongs here too: it resolves `@deprecated` JSDoc tags on symbols across files, so it needs type information and does nothing under plain `oxlint`.
 
    `prefer-nullish-coalescing` and `prefer-optional-chain` belong here, not in the base config: both need type information to know whether an operand is nullable, so under plain `oxlint` they silently do nothing.
 
