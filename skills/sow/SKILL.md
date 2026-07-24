@@ -7,7 +7,7 @@ description: >
   "configure typescript", or "sow".
 metadata:
   author: Mark Anthony Cianfrani
-  version: "0.2"
+  version: "0.3"
 ---
 
 # Sow - TypeScript Project Setup
@@ -111,7 +111,7 @@ If they choose to remove, delete:
 
 ### 5. Type-Aware Linting (opt-in)
 
-Type-aware rules are **off by default** and not in `.oxlintrc.json`. They are powerful but still alpha: they need a second binary (`oxlint-tsgolint`, a Go backend that embeds the TypeScript compiler), are slower, and can use a lot of memory on large repos. Leaving them out keeps the default `lint` honest — every rule in the base config actually runs.
+Type-aware rules are **off by default** and not in `.oxlintrc.json`. They need a second binary (`oxlint-tsgolint@7`, a Go backend that embeds the TypeScript compiler) and run slower than the syntactic pass. Leaving them out keeps the default `lint` honest — every rule in the base config actually runs.
 
 The `--tsconfig` flag on the default `lint` script does **not** enable these rules. It only points oxlint's import plugin at the tsconfig for path-alias resolution. Type-aware rules require a separate flag and binary.
 
@@ -120,24 +120,28 @@ To turn type-aware linting on for a project:
 1. Install the backend:
 
    ```bash
-   <pkg-manager> add -D oxlint-tsgolint
+   <pkg-manager> add -D oxlint-tsgolint@7
    ```
 
 2. Add the rules to `.oxlintrc.json`:
 
    ```json
+   "typescript/consistent-type-exports": "error",
    "typescript/no-deprecated": "error",
    "typescript/no-floating-promises": "error",
    "typescript/no-misused-promises": "error",
    "typescript/no-unnecessary-type-assertion": "error",
    "typescript/no-unnecessary-condition": "error",
    "typescript/prefer-nullish-coalescing": "error",
-   "typescript/prefer-optional-chain": "error"
+   "typescript/prefer-optional-chain": "error",
+   "typescript/strict-void-return": "error"
    ```
 
    `no-deprecated` belongs here too: it resolves `@deprecated` JSDoc tags on symbols across files, so it needs type information and does nothing under plain `oxlint`.
 
    `prefer-nullish-coalescing` and `prefer-optional-chain` belong here, not in the base config: both need type information to know whether an operand is nullable, so under plain `oxlint` they silently do nothing.
+
+   `consistent-type-exports` mirrors the base config's `consistent-type-imports` — it needs types to know which exports are type-only. `strict-void-return` widens `no-misused-promises` to every void-returning position, not just promises; it can be noisy on event handlers.
 
 3. Add `--type-aware` to the existing `lint` script so there is still one lint command, and it's the strong one:
 
@@ -147,7 +151,11 @@ To turn type-aware linting on for a project:
 
    Don't ship a separate `lint:type-aware` script — a second command just means people run the weaker one by reflex and feel covered when they aren't. Make `lint` the full check.
 
-   `--type-aware` turns on the typescript plugin's **whole** type-aware rule set, not only the six you listed. Findings will surface from rules you never wrote down — commonly `typescript/unbound-method` and `typescript/no-redundant-type-constituents`. Decide each per project: fix the code, or set the rule `"off"` with a reason. (Example: `unbound-method` fires on every destructured method, so a codebase whose core pattern is `const { method } = ctx` turns it off rather than fight its own idiom.)
+   `--type-aware` turns on the typescript plugin's **whole** type-aware rule set, not only the ones you listed. Findings will surface from rules you never wrote down — commonly `typescript/unbound-method` and `typescript/no-redundant-type-constituents`. Decide each per project: fix the code, or set the rule `"off"` with a reason. (Example: `unbound-method` fires on every destructured method, so a codebase whose core pattern is `const { method } = ctx` turns it off rather than fight its own idiom.)
+
+   To fold type-checking into the same run, add `--type-check`. It reports tsc's compiler errors from the TypeScript program the linter already built, instead of a separate `tsc` pass.
+
+   Five type-aware rules are `"off"` in the base config (`no-implied-eval`, `prefer-promise-reject-errors`, `require-await`, `prefer-includes`, `prefer-string-starts-ends-with`) and stay off even with `--type-aware` — an explicit `off` beats the category default. They no-op'd under plain `oxlint`, so they were disabled. Now that they run, decide each on merit; `no-implied-eval` first, it's the only safety rule of the five.
 
 The pre-commit hook can stay syntactic-only (type-aware is too slow for the inner loop). Run the full type-aware `lint` in CI, where it's the real gate. That fast/slow split is local-vs-CI, not two scripts a developer juggles.
 
