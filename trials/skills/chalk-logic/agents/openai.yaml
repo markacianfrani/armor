@@ -1,0 +1,7 @@
+interface:
+  display_name: "Chalk Logic"
+  short_description: "Create quiet white-chalk editorial illustrations"
+  default_prompt: "Use $chalk-logic to turn this concept into a quiet wordless chalk illustration: [concept]."
+
+policy:
+  allow_implicit_invocation: false
