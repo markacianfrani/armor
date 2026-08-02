@@ -15,6 +15,15 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { esc, renderSessionHTML } from "./render-shared.js";
+
+/**
+ * Pinned CDN source for the @cianfrani/ai-ui web components. The package is
+ * self-registering custom elements whose only dependency is lit; jsdelivr's
+ * /+esm endpoint bundles it into one file and resolves lit transitively, so
+ * no import map is needed. Bump this version to refresh exported transcripts.
+ */
+const AI_UI_CDN_URL =
+  "https://cdn.jsdelivr.net/npm/@cianfrani/ai-ui@0.1.0-alpha.3/+esm";
 function currentModuleDir() {
   const meta = import.meta;
   return meta.dirname ?? meta.dir ?? dirname(fileURLToPath(import.meta.url));
@@ -71,7 +80,6 @@ function overviewControlsScript() {
 }
 export function buildStandaloneHTML(payload) {
   const css = readAsset("session.css");
-  const componentsJs = readAsset("ai-components.js");
   const title = esc(payload.meta.title || "Session");
   // Standalone exports have no router: render links as inert labels and
   // show the raw timestamp (no clock to compute "3m ago" against later).
@@ -93,9 +101,7 @@ ${sessionHtml}
       </div>
     </main>
 
-    <script type="module">
-${componentsJs}
-    </script>
+    <script type="module" src="${AI_UI_CDN_URL}"></script>
     <script>
 ${markdownWhitespacePatch()}
     </script>
