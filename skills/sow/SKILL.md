@@ -73,7 +73,7 @@ Copy configs from the `references/` folder:
 - `references/oxfmtrc.json` → `.oxfmtrc.json`
 - `references/tsconfig.json` → `tsconfig.json`
 
-**Lint config posture.** Deliberately loud, and the `"off"` rules are intentional — they kill formatter conflicts, wrong-environment rules, two mutually-exclusive pairs, and cross-plugin double-reporting. Don't re-enable an off without checking why it's off. One invisible trap: `plugins` _overwrites_ oxlint's defaults instead of extending them, so the list must name every default too (`eslint`, `typescript`, `unicorn`, `oxc`) — drop `oxc` and you silently lose its rules.
+**Lint config posture.** Deliberately loud, and the `"off"` rules are intentional — they kill formatter conflicts, wrong-environment rules, mutually-exclusive pairs that ping-pong under `--fix`, and cross-plugin double-reporting. The ping-pong pairs are: `no-ternary`/`prefer-ternary`, and the vitest `prefer-to-be-truthy`/`prefer-to-be-falsy` (which autofix `toBe(true)`→`toBeTruthy()`) vs `prefer-strict-boolean-matchers` (which autofixes it straight back) — all three sit in the Style category, so `style: warn` turns them on together; disabling the two deprecated aliases keeps the strict matcher and ends the war. Don't re-enable an off without checking why it's off. One invisible trap: `plugins` _overwrites_ oxlint's defaults instead of extending them, so the list must name every default too (`eslint`, `typescript`, `unicorn`, `oxc`) — drop `oxc` and you silently lose its rules.
 
 For tsconfig, adjust the `@src/*` path mapping to match the project structure. The config has no `baseUrl` — TypeScript 6.0 made it a hard error, so `paths` values are relative (`./src/*`) and resolve from the tsconfig's location.\*
 

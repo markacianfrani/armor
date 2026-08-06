@@ -30,6 +30,8 @@
     "func-style": "off",
     "no-magic-numbers": "off",
     "capitalized-comments": "off",
+    "vitest/prefer-to-be-truthy": "off",
+    "vitest/prefer-to-be-falsy": "off",
     "typescript/no-implied-eval": "off",
     "typescript/prefer-promise-reject-errors": "off",
     "typescript/require-await": "off",
