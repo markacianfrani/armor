@@ -46,6 +46,13 @@ Ask:
 
 Prefer concrete actors when the sentence names them. Do not invent an actor the source does not support.
 
+Do not remove every nominalization. Keep one when it:
+
+- Forms a short subject that refers back to the previous sentence and helps the prose cohere.
+- Replaces an awkward **the fact that** clause, unless a direct character-and-action rewrite is clearer.
+- Names the natural object of an action, as in **I accepted her request**.
+- Refers to a concept so familiar to the audience that readers treat it as a virtual character.
+
 ### 3. Rewrite
 
 1. Turn nominalized actions back into verbs: **automation → automate**, **loss → lose**.
