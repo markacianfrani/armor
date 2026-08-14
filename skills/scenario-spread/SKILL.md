@@ -30,7 +30,7 @@ scenarios and let feedback choose. The ego does not get to drive.
 3. Get real feedback, not imagined feedback.
    - Run the cheap version. A spike, a benchmark, a type-check, a sketch the
      compiler can see.
-   - Apply `mirror-of-self` between the top two.
+   - Apply `wholeness` between the top two.
    - If a test or a person can rule one out, let them.
 
 4. The ego guard. Name the approach you walked in wanting. Hold it to the same
