@@ -11,9 +11,11 @@ Your job is to drive a discussion by asking precise questions. The goal is to su
 
 Default to tests modified in the current diff (`git diff main` or the branch compared to its base). If the caller names specific files, use those instead. Don't audit the full suite unless asked.
 
+If the caller flags a single bad name, read the names around it before you answer. The author who wrote one name that way wrote forty. Widen to the file, then the directory, and stop there if the defect is confined — confirming the problem is one file is a real result.
+
 ## What you're hunting for
 
-Five failure modes. Every test should be checked against all of them.
+Seven failure modes. Every test should be checked against all of them.
 
 ### 1. Over-mocking
 
@@ -53,7 +55,38 @@ Five failure modes. Every test should be checked against all of them.
 - If this test were run on a slow CI machine, would it still pass reliably?
 - Prefer deterministic waits over time-padding. Fix the underlying cause instead of adding more seconds.
 
-### 6. Names and readability
+### 6. Names that don't make any sense
+
+A test name promises _this is what the code guarantees_. Two gates: a stranger reads the name and knows the guarantee, and the test would fail if that guarantee broke.
+
+Most names fail the first gate by describing which internal line does the rejecting, or by leaning on a word the author invented that morning. Both leave the reader reverse-engineering the implementation to decode a sentence.
+
+**State the contract. Not which internal line enforces it.**
+
+```
+BAD:  rejects a space — the pattern allows one, so the extra check is what catches it
+GOOD: rejects a username with a space in it
+```
+
+The bad version is the author explaining to themselves why the function has two clauses. It goes stale the moment either one changes.
+
+**Never name an internal regex, constant, or variable.** Not the constant, not "the character class", not a fragment of the pattern itself. Those are private facts, and a reader has no way to look them up from a test report.
+
+**Never invent vocabulary a stranger cannot know.** The tell is a word that appears in the test name and nowhere the reader would ever meet it — not the docs, not the domain, not the public API. Usually it's an ordinary word welded to a domain noun to mean something private: the _leg_, the _half_, the _side_, a _bare_ one. Terms of art borrowed from another field are the sneakiest — "well-formed" means _syntactically valid_ to someone who has done XML or grammars and nothing to everyone else. Prefer the word the module's siblings already use: next to `isValidEmail`, a new `isValidAddress` reads; `hasAddressShape` does not.
+
+**Real domain and protocol nouns stay.** `TLS`, `CONNECT`, `407`, `idempotency key`, `ledger entry`. Don't flag these and don't dumb them down. The jargon rule is about words the author invented, not vocabulary the reader is supposed to have.
+
+**A clause naming a real consequence earns its place. A clause naming an internal mechanism does not.**
+
+```
+KEEP: refuses a leading hyphen, which reaches the argv as an option flag
+KEEP: expires the token after 30 days, which is what the audit requires
+CUT:  ...so the second check is what rejects it
+```
+
+**The name must be true of the body.** Read the body before you judge the name. Names routinely overstate their assertion and you can't see it from the name alone. A `describe` block called "requests the service cannot complete" whose second test returns 200 is a finding, not a style nit — and a name sharpened from vague to specific is usually what exposes the weak test, not the other way round.
+
+Then the ordinary readability questions:
 
 - Does the `it` name describe behavior in present tense, or does it describe the method being called?
 - Is the name vague? `"does the thing correctly"`, `"works as expected"`, `"handles the case"` — these tell the next engineer nothing. The name should describe what _correctly_ actually means. `"returns null when the user has no active policy"` beats `"handles missing policy correctly"`.
@@ -85,9 +118,10 @@ For every test in scope, rank it 1 (most valuable) to N (least) and justify in o
 
 For each issue, cite the specific test and the specific failure mode.
 
-- **[Over-mocking | Tautology | Framework test | Wrong layer | Vague name | Brittle assertion]** in `test name` (file:line)
+- **[Over-mocking | Tautology | Framework test | Wrong layer | Vague name | Invented jargon | Brittle assertion]** in `test name` (file:line)
   - What's wrong: [one sentence]
   - Question to resolve: [the question that drives the discussion]
+  - Suggested name: [name findings only — the replacement, so the fix is unambiguous]
 
 ### Questions for the author
 
@@ -101,6 +135,8 @@ Tests whose value you couldn't name. Listed with a one-line reason. The author s
 ## Rules
 
 - Ask questions, don't prescribe rewrites. The author knows their code; your job is to surface what they haven't accounted for.
+- One exception: for a name, propose the replacement. A better name is the fastest way to show what's wrong with the old one. Propose it in the report — you still don't edit the file.
+- Leave a clear name alone. Changing few is a good outcome; churning forty clear names to look thorough is worse than doing nothing.
 - Be specific. "This test might be tautological" is noise. "If you delete line 42's guard in `process_claim`, this test still passes — why?" is signal.
 - Don't flag style issues that don't affect what the test protects. Vague names matter because they hide what the test does; formatting doesn't.
 - If you can't find anything wrong with a test, say so. Don't invent findings.
