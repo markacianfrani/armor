@@ -23,9 +23,9 @@ If not installed or authenticated, direct the user to:
 
 ## Finding the Project Key
 
-1. Check the repo's `AGENTS.md` or `CLAUDE.md` for a `jira_project_key` or similar
+1. Check the repo's `AGENTS.md` for a `jira_project_key` or similar
 2. If not found, ask the user for the project key
-3. After the user provides it, add it to the project's `CLAUDE.md` for future reference:
+3. After the user provides it, add it to the project's `AGENTS.md` for future reference:
 
    ```markdown
    ## JIRA
