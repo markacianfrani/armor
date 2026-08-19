@@ -1,6 +1,6 @@
 ---
 name: cianfrani
-description: Review current branch or PR changes with specialized agents and turn the findings into a decision brief. Weighs concrete blockers, mutation evidence, safe type improvements, relative effort, and changes that need design involvement. Use when the user invokes Cianfrani or asks for a comprehensive, decision-oriented code review.
+description: Channel the spirit of Mark Cianfrani to review your code changes. 
 ---
 
 # Cianfrani Review

@@ -2,7 +2,7 @@
 
 The final report is an editorial synthesis, not a concatenation of reviewer output. Write for a reader who knows the language and common idioms but has little context about this branch.
 
-Organize the report around the decisions the reader needs to make. Mention agent attribution when disagreement changes the recommendation or independent agreement materially raises confidence. Local numbering is useful for quick replies, and every numbered reference repeats the finding's full title.
+Organize the report around the decisions the reader needs to make. Give every retained finding a stable category ID: `B` for blocking, `S` for safe improvement, `D` for design decision, `R` for tracked risk, and `P` for reduced protection. Begin with a compact index of every ID, title, effort, and requested disposition. Use the ID with the full title in detailed sections. Mention agent attribution when disagreement changes the recommendation.
 
 ## Classification
 
@@ -62,9 +62,9 @@ Write non-obvious findings in plain branch-local language:
 3. **Impact:** what the user, operator, or next developer experiences
 4. **Smallest fix:** the narrowest credible direction, with alternatives where they represent a real decision
 
-Define branch-specific terms on first use. Present decision questions after the trigger and impact are clear.
+Define branch-specific terms on first use. Present decision questions after the trigger and impact are clear. Use one compact causal paragraph when it carries the same meaning as four labeled fields. Include one decisive reproduction rather than a chronology of experiments. Use a table only when comparing options or measurements changes the decision.
 
-Conventional local improvements may stay to one line. The line includes both the change and its payoff:
+Conventional local improvements stay to one line. The line includes both the change and its payoff:
 
 > Make `PermissionArgs` a discriminated union so each permission kind requires only its valid fields.
 
@@ -82,7 +82,7 @@ For a survived mutation, state:
 - which tests remained green
 - the behavior the suite therefore cannot catch
 
-Use the label **Mutation-proven**. Place the finding under **Reduced test protection** unless the missing protection is itself a concrete merge requirement or critical boundary. A killed mutation is positive validation evidence and may be summarized under **Already sound** or **Review checks**.
+Use the label **Mutation-proven**. Place the finding under **Reduced test protection** unless the missing protection is itself a concrete merge requirement or critical boundary. A killed mutation is positive validation evidence summarized in the brief's compact **Evidence** line.
 
 ## Material disagreement and house rules
 
@@ -94,14 +94,19 @@ For each retained house-rule violation, put this beside the finding:
 
 ## Section order
 
-1. **Blocking** — merge hazards, separating direct fixes from genuine design choices
-2. **Safe improvements worth taking** — non-blocking direct fixes with narrow verified contracts and low blast radius; local type improvements first
-3. **Needs your design decision** — multiple valid behaviors, contracts, boundaries, or abstraction choices
-4. **Risks to accept or track** — credible non-blocking threats whose fix is not clearly worth its effort now
-5. **Reduced test protection** — what the suite could catch before, or should catch now, but cannot; mutation-proven gaps first
-6. **Review checks** — compact scope, validation, mutation, house-rule, and confidence metadata
+1. **Finding index** — every finding in one referenceable table
+2. **Blocking** — merge hazards, separating direct fixes from genuine design choices
+3. **Safe improvements worth taking** — non-blocking direct fixes with narrow verified contracts and low blast radius; local type improvements first
+4. **Needs your design decision** — multiple valid behaviors, contracts, boundaries, or abstraction choices
+5. **Risks to accept or track** — credible non-blocking threats whose fix is not clearly worth its effort now
+6. **Reduced test protection** — what the suite could catch before, or should catch now, but cannot; mutation-proven gaps first
+7. **Verification gaps** — only failed, skipped, or inconclusive checks that materially limit confidence or require action
 
-Under **blocking only**, include only concrete blockers and the checks needed to support them. Under **brief**, use one line for conventional findings and one short causal paragraph for non-obvious findings. Otherwise omit empty sections.
+The **Scope**, **Recommendation**, and **Evidence** lines replace an at-a-glance metrics block. Summarize successful checks in **Evidence** instead of narrating each command, retry, workspace, or clean result. Omit **Verification gaps** when nothing material is missing. A resolved environment failure stays out of the brief unless it leaves the result uncertain.
+
+Retain a pre-existing issue only when this diff materially exposes, worsens, or depends on it. Label that relationship in one clause. Other pre-existing issues are outside this review.
+
+Under **blocking only**, include only concrete blockers and the evidence needed to support them. Under **brief**, use one line for conventional findings and one short causal paragraph for non-obvious findings. Otherwise omit empty sections.
 
 ## Output template
 
@@ -109,77 +114,61 @@ Under **blocking only**, include only concrete blockers and the checks needed to
 # Review Decision Brief
 
 **Scope:** `[base-ref]@[base-sha]` → `[head-sha]`; working tree [clean | changes included]; [X files]
+**Recommendation:** [merge | merge after B1 and B2 | hold for D1]
+**Evidence:** [compact summary, for example: `build ✓ · tests 109/109 ✓ · mutations 8 killed/0 survived · house rules ✓`]
 
-## At a glance
+## Finding index
 
-- Recommendation: [merge | merge after the blocking fixes below | hold for a design decision]
-- Blocking: X ([direct fixes], [design choices])
-- Safe improvements: X
-- Design decisions: X
-- Risks to track: X
-- Reduced protection: X ([mutation-proven count])
-- Validation: [build, tests, and mutation summary]
-- Already sound: [one sentence naming the strongest verified area]
+| ID  | Finding                         | Effort | Decision               |
+| --- | ------------------------------- | -----: | ---------------------- |
+| B1  | [Full blocker title]            |      S | [fix / A or B / defer] |
+| S1  | [Full safe-improvement title]   |     XS | [safe bundle]          |
+| D1  | [Full design-decision title]    |      L | [A / B / defer]        |
+| R1  | [Full tracked-risk title]       |      M | [accept / track / fix] |
+| P1  | [Full reduced-protection title] |      S | [fix test / accept]    |
 
 ## Blocking
 
-### [Outcome-oriented title]
+### B1 — [Outcome-oriented title]
 
-**When:** [Reachable trigger in branch-local terms.]
-**What goes wrong:** [Incorrect or unsafe behavior.]
-**Impact:** [Practical consequence.]
-**Smallest fix:** [Narrowest credible direction.]
-**Decision needed:** [Only for multiple valid behaviors or designs.]
+**[XS | S | M | L | XL] · [type-only | mechanical | behavioral | design] · [direct fix | approval needed | design choice] · [scope fit]**
 
-**Decision mode:** [direct fix | approval needed | design choice]
-**Effort:** [XS | S | M | L | XL]
-**Change shape:** [type-only | mechanical | behavioral | design]
-**Scope fit:** [this PR | prerequisite | follow-up | separate architecture work]
+**When:** [Reachable trigger.] **What goes wrong:** [Incorrect behavior.] **Impact:** [Practical consequence.]
+**Smallest fix:** [Narrowest credible direction or short A/B choice.]
 **Evidence:** [`file:line`, failing test, reproduction, or mutation]
 **Disagreement:** [Only when material; competing claim, evidence, resolution.]
 **Basis:** [Only for a house-rule violation: `AGENTS.md — "quoted rule"`.]
 
 ## Safe improvements worth taking
 
-- **[XS · type-only]** Make [Type] [specific improvement] so [invalid state or caller burden is removed]. [`file:line`]
-- **[S · mechanical]** [Contract-preserving cleanup and payoff.] [`file:line`]
+- **S1 · XS · type-only — [Full title].** [Change and payoff.] [`file:line`]
+- **S2 · S · mechanical — [Full title].** [Contract-preserving cleanup and payoff.] [`file:line`]
 
 ## Needs your design decision
 
-### [Decision in plain language]
+### D1 — [Decision in plain language]
 
-**Why it matters:** [Current threat or limitation and practical impact.]
-**Choices:** [Credible options, including defer.]
+**[M | L | XL] · design · [scope fit]**
+
+**Why it matters:** [Threat and impact.] **Choices:** [A / B / defer.]
 **Cost surface:** [Subsystems, contracts, abstractions, dependencies, migrations, operations, and meaningful deletion.]
-**Why now:** [Why this complexity belongs in this PR, or why it should be follow-up work.]
-**Effort:** [M | L | XL]
-**Scope fit:** [this PR | follow-up | separate architecture work]
+**Why now:** [Why this belongs in the PR or should be follow-up work.]
 **Evidence:** [`file:line`]
 
 ## Risks to accept or track
 
-- **[Risk title]** — [Trigger and consequence.] **Effort:** [size]. **Change shape:** [kind]. **Revisit when:** [concrete trigger]. [`file:line`]
+- **R1 · [effort] · [shape] — [Full title].** [Trigger and consequence.] **Revisit when:** [concrete trigger]. [`file:line`]
 
 ## Reduced test protection
 
-- **Mutation-proven — [Behavior no longer protected].** [Exact mutation survived; focused command and green tests.] [`file:line`]
-- [Statically identified behavior or regression the suite could catch before this diff but cannot catch now.]
+- **P1 · Mutation-proven — [Full title].** [Exact mutation survived and the behavior the green tests cannot catch.] [`file:line`]
+- **P2 — [Full title].** [Protection lost or missing.] [`file:line`]
 
-## Review checks
+## Verification gaps
 
-- Snapshot: base `[ref]@[sha]` → head `[sha]`; working tree [included state]
-- Build: [passed | failed | not run]
-- Tests: [result]
-- Mutations: [X killed, Y survived, Z inconclusive | skipped with reason]
-- House rules: [X checked, none violated | Y violations and Z ambiguous/pre-existing findings filtered | no AGENTS.md, skipped]
-- Reviewer disagreement: [none | material disagreements are resolved beside their findings]
+- [Only a failed, skipped, or inconclusive check that changes confidence or requires a decision.]
 
-## Decisions requested
-
-1. Fix **[full blocking title]** now? [yes / defer]
-2. For **[full design title]**, choose [A / B / defer].
-3. Take the safe bundle: **[full title]**, **[full title]**? [all / named subset / none]
-4. For **[full risk title]**: [accept / track / fix now]
+Reply with IDs or bundles, for example: `B1 A, B2 yes, S all, D1 defer, P1 fix`.
 ```
 
 Present every proposed code change while supporting approval by titled bundle or exclusion, such as `all blocking, no test-only improvements`. Wait for the user's choices before implementation. Repeat full titles in next steps.
