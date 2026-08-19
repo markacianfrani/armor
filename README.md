@@ -51,6 +51,7 @@ Skills can be installed individually with:
 
 ### Code Skills
 
+- cianfrani - reviews branch or PR changes and returns a decision brief
 - sow - sets your project up with strict linting and guardrails
 
 ### Documentation Skills

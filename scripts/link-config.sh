@@ -174,6 +174,43 @@ remove_stale_links() {
   done
 }
 
+remove_missing_repo_links() {
+  local source_dir="$1"
+  shift
+  local targets=("$@")
+  local source_dir_folded=""
+
+  if [ "$(uname -s)" = "Darwin" ]; then
+    source_dir_folded=$(printf '%s' "$source_dir" | tr '[:upper:]' '[:lower:]')
+  fi
+
+  for target_dir in "${targets[@]}"; do
+    [ -d "$target_dir" ] || continue
+    while IFS= read -r -d '' entry; do
+      local resolved
+      local owned=0
+      resolved=$(resolve_script_path "$entry" 2>/dev/null || true)
+
+      case "$resolved" in
+        "$source_dir"/*) owned=1 ;;
+      esac
+
+      if [ "$owned" -eq 0 ] && [ -n "$source_dir_folded" ]; then
+        local resolved_folded
+        resolved_folded=$(printf '%s' "$resolved" | tr '[:upper:]' '[:lower:]')
+        case "$resolved_folded" in
+          "$source_dir_folded"/*) owned=1 ;;
+        esac
+      fi
+
+      if [ "$owned" -eq 1 ] && [ ! -e "$resolved" ]; then
+        rm -f "$entry"
+        removed=$((removed + 1))
+      fi
+    done < <(find "$target_dir" -maxdepth 1 -type l -print0)
+  done
+}
+
 link_md_dir "$AGENTS_DIR" "${SHARED_AGENT_TARGETS[@]}" "${CLAUDE_AGENT_TARGETS[@]}"
 link_md_dir "$COMMANDS_DIR" "${SHARED_COMMAND_TARGETS[@]}" "${CLAUDE_COMMAND_TARGETS[@]}"
 link_skill_dir "$SKILLS_DIR" "${SHARED_SKILL_TARGETS[@]}" "${CLAUDE_SKILL_TARGETS[@]}"
@@ -196,6 +233,9 @@ if [ -f "$COMMANDS_DIR/review.md" ]; then
   fi
 fi
 
+remove_missing_repo_links "$AGENTS_DIR" "${SHARED_AGENT_TARGETS[@]}" "${CLAUDE_AGENT_TARGETS[@]}"
+remove_missing_repo_links "$COMMANDS_DIR" "${SHARED_COMMAND_TARGETS[@]}" "${CLAUDE_COMMAND_TARGETS[@]}"
+remove_missing_repo_links "$SKILLS_DIR" "${SHARED_SKILL_TARGETS[@]}" "${CLAUDE_SKILL_TARGETS[@]}"
 remove_stale_links
 
 echo "armor config: linked $linked, backed up $backed_up, already current $skipped, removed stale $removed"
