@@ -122,7 +122,7 @@ function createForkAutocompleteProvider(current: AutocompleteProvider): Autocomp
       // Argument completion after "/fork ".
       const match = beforeCursor.match(/^\/fork\s+(\S*)$/);
       if (match !== null) {
-        const query = match[1] ?? "";
+        const query = match[1];
         const items = FORK_ARGUMENTS.filter((argument) => argument.value.startsWith(query.toLowerCase()))
           .map((argument) => ({ ...argument }));
         if (items.length > 0) {
@@ -146,7 +146,7 @@ function createForkAutocompleteProvider(current: AutocompleteProvider): Autocomp
             label: `fork ${argument.value}`,
             description: argument.description,
           }))
-          .filter((item) => item.value.startsWith(fragment[1] ?? ""));
+          .filter((item) => item.value.startsWith(fragment[1]));
         if (extra.length === 0) {
           return builtIn;
         }
