@@ -5,8 +5,8 @@
  * Polls the ChatGPT usage API when the active model is openai-codex.
  */
 
-import type { Api, Model } from "@mariozechner/pi-ai";
-import type { ExtensionAPI, ModelRegistry } from "@mariozechner/pi-coding-agent";
+import type { Api, Model } from "@earendil-works/pi-ai";
+import type { ExtensionAPI, ModelRegistry } from "@earendil-works/pi-coding-agent";
 
 type AnyModel = Model<Api>;
 

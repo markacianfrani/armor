@@ -32,7 +32,8 @@ import { readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
-import type { ExtensionAPI, ProviderModelConfig } from "@mariozechner/pi-coding-agent";
+import type { OpenAICompletionsCompat } from "@earendil-works/pi-ai";
+import type { ExtensionAPI, ProviderModelConfig } from "@earendil-works/pi-coding-agent";
 
 const PROVIDER = "llmgateway";
 const DEFAULT_BASE_URL = "https://api.llmgateway.io/v1";
@@ -311,9 +312,9 @@ function toProviderModel(model: LlmGatewayModel): ProviderModelConfig | null {
   };
 }
 
-function openAiCompatForModel(model: LlmGatewayModel): ProviderModelConfig["compat"] {
+function openAiCompatForModel(model: LlmGatewayModel): OpenAICompletionsCompat {
   const params = supportedParameterSet(model.supported_parameters);
-  const compat: NonNullable<ProviderModelConfig["compat"]> = {
+  const compat: OpenAICompletionsCompat = {
     // LLM Gateway fronts many non-OpenAI chat-completions providers. Pi's
     // default for a custom OpenAI-compatible provider sends the system prompt
     // as a `developer` message for reasoning models, but models like
