@@ -1,83 +1,66 @@
 ---
 name: cianfrani
-description: Channel the spirit of Mark Cianfrani to review your code changes. 
+description: Channel the spirit of Mark Cianfrani to review your code changes.
 ---
 
 # Cianfrani Review
 
-Review the current changes with specialized agents, then edit their raw findings into a self-contained decision brief.
+Find what would break if this merged. Report that and nothing else.
 
-The user may append review aspects, a base ref or range, and an output mode when invoking this skill. Treat those arguments as the review request.
+Arguments are the request: aspects to force, a base ref or range, or `blocking only`.
 
-Before dispatching reviewers, read [reviewers.md](references/reviewers.md) completely. Before synthesizing the final response, read [decision-brief.md](references/decision-brief.md) completely.
+## Scope
 
-## 1. Determine the review scope
+Base: a ref from the user, else the PR base, else the merge base with the default branch. Include tracked working-tree changes. Read the full diff yourself. Only added and modified code is in scope.
 
-Resolve the comparison base in this order:
+## Legs
 
-1. A base ref or range supplied by the user
-2. The PR base from provider metadata
-3. The merge base between `HEAD` and the repository's default branch
-4. A clarification question when the base remains ambiguous
+A leg runs whenever its condition holds. Do not skip one because the diff looks small or you already read it.
 
-Include tracked working-tree changes. Identify relevant untracked files and state whether they are included. Record the base ref and SHA, `HEAD` SHA, dirty state, and changed-file count for the final report.
+| Aspect | Leg | Dispatch when the diff |
+|---|---|---|
+| **api** | steiner | changes a route or response contract |
+| **errors** | kimahri | changes a catch, rescue, fallback, or retry |
+| **types** | auron | changes an exported type or schema |
+| **tests** | lulu | changes test files |
+| **house** | you | `AGENTS.md` exists: extract the checkable rules, check what this diff introduces, quote the rule per violation |
 
-## 2. Parse the review request
+Run legs in parallel, one shot each, with the diff scope and this text verbatim:
 
-### Review aspects
+> Report only; do not edit files. Return every finding you would block a merge on, plus at most three improvements to the changed code that your rubric exists to catch. Each finding: one sentence stating the problem and its consequence, `file:line`, the evidence, the smallest fix. Trace it end to end first; if you cannot confirm it, do not report it. Do not propose refactors, new layers, or options to choose between. Do not list what you checked or what is fine. If nothing meets the bar, reply "clean" and stop.
 
-- **api** — REST endpoints, HTTP semantics, and API testing
-- **errors** — silent failures, catch blocks, fallbacks, logging, and user feedback
-- **types** — type design, invariants, schema alignment, and unnecessary type ceremony
-- **tests** — regression value, tautology, over-mocking, wrong-layer tests, and names
-- **mutations** — empirical checks that changed tests fail when assertions or implementation are broken
-- **simplify** — structural simplification, deletion, and unnecessary abstractions
-- **house** — the diff against checkable rules in `AGENTS.md`
-- **risk** — risky changed paths that merit additional attention
-- **all** — all applicable aspects; this is the default
+## The bar
 
-### Output modes
+Verify every finding against the diff yourself.
 
-- **blocking only** / **critical only** — report concrete merge blockers only
-- **brief** / **terse** — one line for conventional findings and one short causal paragraph for non-obvious findings
-- **full** — include all applicable decision sections; this is the default
+- **Blockers always ship.** Trace them end to end. Never say "X unless Y handles it" when you can read Y.
+- **Intended breakage is not a finding.** If the branch exists to remove the safeguard or change the behavior, say nothing.
+- **Improvements stay inside the diff.** A tighter type, a test that would actually fail, a better name on a changed symbol: ship it. A new abstraction, layer, helper, or module: drop it. The smallest fix is the fix.
+- **One pattern is one finding**, listing every location.
+- **At most five non-blockers ship.** Drop the rest silently.
+- **You make the call.** Pick the behavior the surrounding code implies. Ask a question only when the code cannot decide, and ask it with no options attached.
+- **When unsure, demote or drop.**
 
-Review aspects select which checks run. Output modes select what the final brief includes.
+## Output
 
-## 3. Inspect the diff
+Under 300 words. No effort sizes, no IDs, no reviewer names.
 
-Read the changed-file list and the complete diff for the resolved scope. Compare changed tests with their previous versions so reduced protection is visible. Follow changed code far enough to validate reviewer claims and understand public or operational consequences.
+```markdown
+# Review
 
-## 4. Run applicable reviewers
+**Scope:** `[base]@[sha]` → `[head]`; [N files]
+**Verdict:** [merge | merge after 1 | hold: 1, 2]
 
-Use one-shot reviewers and collect each result directly. Run independent checks in parallel unless the user requests sequential review.
+## Blockers
 
-Default applicability:
+1. **[Problem and consequence].** [Trigger, smallest fix.] `file:line`
 
-- API routes or endpoints changed: API review
-- Try/catch, fallbacks, or error paths changed: error review
-- Types or schemas changed: type review
-- Test files changed: test review and mutation checks
-- `AGENTS.md` exists: house-rules review
-- Every comprehensive review: simplification last, after other findings are available
+## Also fix
 
-Mutation checks are empirical evidence and deserve more weight than a reviewer predicting that a test might be weak. Run them in isolated worktrees. If mutation checks are impractical because the test command is unavailable or prohibitively expensive, report that they were skipped rather than implying the tests were verified.
+- **[Problem].** [Fix.] `file:line`
 
-Follow the routing, house-rule, mutation, and evidence instructions in [reviewers.md](references/reviewers.md).
+**Question:** [one sentence, or omit]
+**Not covered by tests:** [one line, or omit]
+```
 
-## 5. Identify reduced protection
-
-Compare each changed test with its previous version and look for:
-
-- Assertions deleted, loosened, or narrowed
-- Tests skipped, marked pending, or removed
-- Mocks widened to replace real behavior
-- Setup weakened so the test exercises less
-
-These are changes in what the suite can catch, not automatically production defects. Mutation evidence may prove or disprove the concern.
-
-## 6. Verify and synthesize
-
-Treat agent output as source material. Verify the strongest claims against the reviewed snapshot, merge duplicates, and resolve contradictions where the code permits. Mutation results outrank static speculation about the same test. If the snapshot changes before implementation, re-check each approved finding against the new diff.
-
-Produce the final report using [decision-brief.md](references/decision-brief.md). Wait for the user to choose proposed changes before implementing them.
+Omit empty sections. Never list what you checked, traced, or found fine; a clean verdict is the header alone. Under `blocking only`, output the header and Blockers. Do not implement anything.
