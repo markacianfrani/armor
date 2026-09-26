@@ -21,18 +21,7 @@
     "skipLibCheck": true,
     "resolveJsonModule": true,
     "lib": ["ES2023"],
-    "types": ["bun-types"],
-    "paths": {
-      "@mariozechner/pi-coding-agent": [
-        "/Users/mark.cianfrani/.bun/install/global/node_modules/@mariozechner/pi-coding-agent/dist/index.d.ts"
-      ],
-      "@mariozechner/pi-ai": [
-        "/Users/mark.cianfrani/.bun/install/global/node_modules/@mariozechner/pi-ai/dist/index.d.ts"
-      ],
-      "@mariozechner/pi-tui": [
-        "/Users/mark.cianfrani/.bun/install/global/node_modules/@mariozechner/pi-tui/dist/index.d.ts"
-      ]
-    }
+    "types": ["bun-types"]
   },
   "include": ["extensions/**/*.ts"],
   "exclude": ["node_modules", "dist"]
