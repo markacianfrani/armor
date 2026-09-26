@@ -35,13 +35,13 @@ When polarity is unspecified, choose the mode that gives the spatial event the c
 
 Choose one primary family. Add at most one subordinate mark language when the relationship needs it.
 
-| Family | Best for | Primary marks |
-| --- | --- | --- |
-| Orbital field | cycles, gravity, recurrence, scale, mutual influence | circles, arcs, radial ticks, loops, spherical meshes |
-| Flow transformation | emergence, routing, filtering, pressure, change | streamlines, particles, arrows, gates, obstacles |
-| Signal strip | rhythm, cadence, phases, comparison, accumulation | waveforms, lanes, bars, repeated measures, faint grids |
-| Topology map | relationships, context, systems, dependencies | nodes, edges, frames, sparse modules |
-| Layered field | tension, thresholds, overlap, latent depth | ruled planes, hatching, contours, wireframe surfaces |
+| Family              | Best for                                             | Primary marks                                          |
+| ------------------- | ---------------------------------------------------- | ------------------------------------------------------ |
+| Orbital field       | cycles, gravity, recurrence, scale, mutual influence | circles, arcs, radial ticks, loops, spherical meshes   |
+| Flow transformation | emergence, routing, filtering, pressure, change      | streamlines, particles, arrows, gates, obstacles       |
+| Signal strip        | rhythm, cadence, phases, comparison, accumulation    | waveforms, lanes, bars, repeated measures, faint grids |
+| Topology map        | relationships, context, systems, dependencies        | nodes, edges, frames, sparse modules                   |
+| Layered field       | tension, thresholds, overlap, latent depth           | ruled planes, hatching, contours, wireframe surfaces   |
 
 ## Workflow
 

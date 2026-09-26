@@ -24,15 +24,19 @@ Use this body structure:
 
 ```markdown
 ## Description
+
 A few sentences: the problem, and why it matters. Answer "who cares."
 
 ## Dependencies
+
 What must land before this, if anything. "None" is a fine answer.
 
 ## Tasks
+
 - Small, concrete, checkable steps.
 
 ## Relevant Context
+
 Files, line numbers, links, decisions from the conversation — whatever the
 person picking this up (possibly you, later) needs to start without asking.
 ```

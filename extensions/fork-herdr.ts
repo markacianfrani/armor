@@ -1,5 +1,5 @@
-import type { AutocompleteProvider } from "@earendil-works/pi-tui";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
+import type { AutocompleteProvider } from "@earendil-works/pi-tui";
 
 const HERDR_COMMAND_TIMEOUT_MS = 10_000;
 
@@ -110,23 +110,28 @@ async function forkIntoHerdr(
 }
 
 const FORK_ARGUMENTS = [
-  { value: "pane", label: "pane", description: "Fork this Pi session into a split pane" },
-  { value: "tab", label: "tab", description: "Fork this Pi session into a new tab" },
+  { description: "Fork this Pi session into a split pane", label: "pane", value: "pane" },
+  { description: "Fork this Pi session into a new tab", label: "tab", value: "tab" },
 ] as const;
 
 function createForkAutocompleteProvider(current: AutocompleteProvider): AutocompleteProvider {
   return {
+    applyCompletion(lines, cursorLine, cursorCol, item, prefix) {
+      return current.applyCompletion(lines, cursorLine, cursorCol, item, prefix);
+    },
+
     async getSuggestions(lines, cursorLine, cursorCol, options) {
       const beforeCursor = (lines[cursorLine] ?? "").slice(0, cursorCol);
 
       // Argument completion after "/fork ".
-      const match = beforeCursor.match(/^\/fork\s+(\S*)$/);
+      const match = /^\/fork\s+(\S*)$/.exec(beforeCursor);
       if (match !== null) {
-        const query = match[1];
-        const items = FORK_ARGUMENTS.filter((argument) => argument.value.startsWith(query.toLowerCase()))
-          .map((argument) => ({ ...argument }));
+        const [, query] = match;
+        const items = FORK_ARGUMENTS.filter((argument) =>
+          argument.value.startsWith(query.toLowerCase()),
+        );
         if (items.length > 0) {
-          return { prefix: query, items };
+          return { items, prefix: query };
         }
         return current.getSuggestions(lines, cursorLine, cursorCol, options);
       }
@@ -134,19 +139,17 @@ function createForkAutocompleteProvider(current: AutocompleteProvider): Autocomp
       // Inject full "/fork pane" and "/fork tab" entries into the slash
       // command menu itself (e.g. while typing "/f"), so the Herdr options
       // are discoverable before any completion happens.
-      const fragment = beforeCursor.match(/^\/(\S*)$/);
+      const fragment = /^\/(\S*)$/.exec(beforeCursor);
       if (fragment !== null) {
         const builtIn = await current.getSuggestions(lines, cursorLine, cursorCol, options);
         if (builtIn === null || builtIn.prefix === "" || !builtIn.prefix.startsWith("/")) {
           return builtIn;
         }
-        const extra = FORK_ARGUMENTS
-          .map((argument) => ({
-            value: `fork ${argument.value}`,
-            label: `fork ${argument.value}`,
-            description: argument.description,
-          }))
-          .filter((item) => item.value.startsWith(fragment[1]));
+        const extra = FORK_ARGUMENTS.map((argument) => ({
+          description: argument.description,
+          label: `fork ${argument.value}`,
+          value: `fork ${argument.value}`,
+        })).filter((item) => item.value.startsWith(fragment[1]));
         if (extra.length === 0) {
           return builtIn;
         }
@@ -154,18 +157,15 @@ function createForkAutocompleteProvider(current: AutocompleteProvider): Autocomp
         // the first-prefix-match rule) with the Herdr options directly below
         // it, so everything relevant is visible while nothing shadows native
         // behavior at any prefix length.
-        const forkItem = builtIn.items.find((i) => i.value === "fork");
-        const items = forkItem !== undefined
-          ? [forkItem, ...extra, ...builtIn.items.filter((i) => i !== forkItem)]
-          : [...extra, ...builtIn.items];
-        return { prefix: builtIn.prefix, items };
+        const forkItem = builtIn.items.find((entry) => entry.value === "fork");
+        const items =
+          forkItem !== undefined
+            ? [forkItem, ...extra, ...builtIn.items.filter((entry) => entry !== forkItem)]
+            : [...extra, ...builtIn.items];
+        return { items, prefix: builtIn.prefix };
       }
 
       return current.getSuggestions(lines, cursorLine, cursorCol, options);
-    },
-
-    applyCompletion(lines, cursorLine, cursorCol, item, prefix) {
-      return current.applyCompletion(lines, cursorLine, cursorCol, item, prefix);
     },
 
     shouldTriggerFileCompletion(lines, cursorLine, cursorCol) {

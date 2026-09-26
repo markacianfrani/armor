@@ -119,7 +119,7 @@ async function readKeychainCredential(): Promise<Credential | null> {
     const { stdout } = await execFileAsync(
       "security",
       ["find-generic-password", "-a", account, "-w", "-s", KEYCHAIN_SERVICE],
-      { timeout: 5_000 },
+      { timeout: 5000 },
     );
     return parseCredential(stdout.trim());
   } catch {
@@ -183,7 +183,7 @@ function toWindow(raw: unknown, scale: "fraction" | "percent"): UsageWindow | nu
   }
   const usedPercent = Math.max(0, Math.min(100, scale === "fraction" ? value * 100 : value));
   const resetAt = asEpochSeconds(resets_at);
-  return resetAt === undefined ? { usedPercent } : { usedPercent, resetAt };
+  return resetAt === undefined ? { usedPercent } : { resetAt, usedPercent };
 }
 
 /** First of next month, UTC — Claude Code's monthly billing boundary. */
@@ -258,9 +258,9 @@ async function fetchLive(): Promise<UsageWindow[] | null> {
     headers: {
       Accept: "application/json",
       Authorization: `Bearer ${credential.accessToken}`,
-      "anthropic-beta": OAUTH_BETA,
       "Content-Type": "application/json",
       "User-Agent": "claude-cli/2.1.283 (external, cli)",
+      "anthropic-beta": OAUTH_BETA,
     },
     signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   });

@@ -34,14 +34,14 @@ Treat every bullet as both a generation rule and a QA gate:
 
 Choose exactly one primary family.
 
-| Family | Best for | Positive grammar |
-| --- | --- | --- |
-| Directional progression | transformation, attenuation, accumulation | one left-to-right or diagonal sequence; encode change through spacing, density, scale, repetition, or pressure |
-| Open cycle | recurrence, phases, sleep, renewal | three to five unequal stages around a large central void, joined by one incomplete loop or return gesture |
-| Source to branches | mechanisms, dispersal, alternatives | one compact source with three to five asymmetrical non-crossing trajectories, differentiated by recognizable form |
-| Axial observation | construction, anatomy, assembly | one recognizable object separated into a small exact part count along one shared axis with sparse alignment traces |
-| Environmental flow | absorption, transfer, growth | one restrained boundary or field and one continuous causal route shown through density and pressure |
-| Quiet vignette | reflection, attention, absence, pause | one compact off-center object constellation in a vast field, carried by placement and emptiness without diagram scaffolding |
+| Family                  | Best for                                  | Positive grammar                                                                                                            |
+| ----------------------- | ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| Directional progression | transformation, attenuation, accumulation | one left-to-right or diagonal sequence; encode change through spacing, density, scale, repetition, or pressure              |
+| Open cycle              | recurrence, phases, sleep, renewal        | three to five unequal stages around a large central void, joined by one incomplete loop or return gesture                   |
+| Source to branches      | mechanisms, dispersal, alternatives       | one compact source with three to five asymmetrical non-crossing trajectories, differentiated by recognizable form           |
+| Axial observation       | construction, anatomy, assembly           | one recognizable object separated into a small exact part count along one shared axis with sparse alignment traces          |
+| Environmental flow      | absorption, transfer, growth              | one restrained boundary or field and one continuous causal route shown through density and pressure                         |
+| Quiet vignette          | reflection, attention, absence, pause     | one compact off-center object constellation in a vast field, carried by placement and emptiness without diagram scaffolding |
 
 ## Steps
 

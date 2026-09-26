@@ -22,8 +22,7 @@ import { esc, renderSessionHTML } from "./render-shared.js";
  * /+esm endpoint bundles it into one file and resolves lit transitively, so
  * no import map is needed. Bump this version to refresh exported transcripts.
  */
-const AI_UI_CDN_URL =
-  "https://cdn.jsdelivr.net/npm/@cianfrani/ai-ui@0.1.0-alpha.3/+esm";
+const AI_UI_CDN_URL = "https://cdn.jsdelivr.net/npm/@cianfrani/ai-ui@0.1.0-alpha.3/+esm";
 function currentModuleDir() {
   const meta = import.meta;
   return meta.dirname ?? meta.dir ?? dirname(fileURLToPath(import.meta.url));
