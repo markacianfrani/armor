@@ -33,6 +33,9 @@
     "format:check": "oxfmt --check ."
   },
   "devDependencies": {
+    "@earendil-works/pi-ai": "^0.87.1",
+    "@earendil-works/pi-coding-agent": "^0.87.1",
+    "@earendil-works/pi-tui": "^0.87.1",
     "bun-types": "latest",
     "oxfmt": "^0.43.0",
     "oxlint": "^1.58.0",

@@ -31,7 +31,7 @@
  *   }
  *
  * Windows are rendered left-to-right as bars separated by │.
- * At ≥95% used, the bar is replaced with ⧖ + countdown to resetAt.
+ * At ≥85% used, the reset countdown is appended to the bar: █████░ ⧖ 4d7h
  */
 
 import { basename } from "node:path";
@@ -121,7 +121,7 @@ interface UsageData {
   windows: UsageWindow[];
 }
 
-const FULL_THRESHOLD = 95;
+const COUNTDOWN_THRESHOLD = 85;
 
 function formatCountdown(resetAt: number | undefined): string | undefined {
   if (resetAt === undefined) {
@@ -137,7 +137,13 @@ function formatCountdown(resetAt: number | undefined): string | undefined {
   }
   const hours = Math.floor(mins / 60);
   const minutes = mins % 60;
-  return minutes > 0 ? `${hours}h${minutes}m` : `${hours}h`;
+  if (hours < 24) {
+    return minutes > 0 ? `${hours}h${minutes}m` : `${hours}h`;
+  }
+  // Weekly and spend windows reset days out, where "103h15m" is unreadable.
+  const days = Math.floor(hours / 24);
+  const remHours = hours % 24;
+  return remHours > 0 ? `${days}d${remHours}h` : `${days}d`;
 }
 
 function renderWindow(window: UsageWindow, barWidth: number): string {
@@ -163,17 +169,19 @@ function renderWindow(window: UsageWindow, barWidth: number): string {
 
   const pct = clampBarPercent(Math.round(window.usedPercent));
   const color = contextColor(pct);
+  const filled = Math.round((pct / 100) * barWidth);
+  const bar = fg(color, "█".repeat(filled)) + fg(DIM, "░".repeat(barWidth - filled));
 
-  if (pct >= FULL_THRESHOLD) {
+  // Past the threshold a bar alone stops being informative, so the reset
+  // countdown is shown alongside it rather than replacing it.
+  if (pct >= COUNTDOWN_THRESHOLD) {
     const countdown = formatCountdown(window.resetAt);
     if (countdown !== undefined) {
-      return fg(color, `⧖ ${countdown}`);
+      return `${bar} ${fg(color, `⧖ ${countdown}`)}`;
     }
-    return fg(color, "█".repeat(barWidth));
   }
 
-  const filled = Math.round((pct / 100) * barWidth);
-  return fg(color, "█".repeat(filled)) + fg(DIM, "░".repeat(barWidth - filled));
+  return bar;
 }
 
 function renderUsageSegment(data: UsageData, maxWidth: number): string {
