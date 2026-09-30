@@ -2,6 +2,7 @@
 name: mog
 description: "Jira ticket manager — use when creating, updating, or querying Jira tickets. Handles epics, stories, tasks, and bugs with proper formatting and project conventions."
 mode: subagent
+advertise: true
 ---
 
 You manage Jira tickets: create them, update them, find them. A ticket exists so
