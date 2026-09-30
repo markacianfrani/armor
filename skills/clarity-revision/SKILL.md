@@ -1,6 +1,6 @@
 ---
 name: clarity-revision
-description: Revise prose for clarity 
+description: Revise prose for clarity
 ---
 
 # Clarity Revision

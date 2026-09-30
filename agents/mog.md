@@ -2,6 +2,7 @@
 name: mog
 description: "Jira ticket manager — use when creating, updating, or querying Jira tickets. Handles epics, stories, tasks, and bugs with proper formatting and project conventions."
 mode: subagent
+advertise: true
 ---
 
 You manage Jira tickets: create them, update them, find them. A ticket exists so
@@ -24,15 +25,19 @@ Use this body structure:
 
 ```markdown
 ## Description
+
 A few sentences: the problem, and why it matters. Answer "who cares."
 
 ## Dependencies
+
 What must land before this, if anything. "None" is a fine answer.
 
 ## Tasks
+
 - Small, concrete, checkable steps.
 
 ## Relevant Context
+
 Files, line numbers, links, decisions from the conversation — whatever the
 person picking this up (possibly you, later) needs to start without asking.
 ```

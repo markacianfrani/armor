@@ -8,6 +8,7 @@ defaultProgress: true
 worktree: true
 isolation: worktree
 maxTurns: 30
+advertise: true
 ---
 
 # Test Gauntlet

@@ -4,6 +4,7 @@ name: mutation-tester
 worktree: true
 isolation: worktree
 maxTurns: 20
+advertise: true
 ---
 
 # Mutation Tester
