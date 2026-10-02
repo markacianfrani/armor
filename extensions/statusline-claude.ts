@@ -10,6 +10,7 @@
  *   anthropic-beta: oauth-2025-04-20
  *
  * Credential sources, in order:
+ *   0. pi's own login, ~/.pi/agent/auth.json → anthropic (refreshed by pi)
  *   1. macOS keychain — `security find-generic-password -s "Claude Code-credentials"`
  *      (this is where Claude Code actually stores live creds on darwin)
  *   2. ~/.claude/.credentials.json (Linux / non-keychain installs)
@@ -48,6 +49,7 @@ const OAUTH_BETA = "oauth-2025-04-20";
 const KEYCHAIN_SERVICE = "Claude Code-credentials";
 const CREDENTIALS_PATH = ".claude/.credentials.json";
 const SNAPSHOT_PATH = ".claude.json";
+const PI_AUTH_PATH = ".pi/agent/auth.json";
 
 const POLL_MS = 60_000;
 const ERROR_BACKOFF_MS = 300_000;
@@ -110,6 +112,27 @@ function parseCredential(raw: string): Credential | null {
   return { accessToken, expiresAt: asNumber(oauth["expiresAt"]) };
 }
 
+/**
+ * Pi's own Anthropic OAuth login (~/.pi/agent/auth.json). Pi refreshes this
+ * itself, so it stays live without ever running Claude Code.
+ */
+async function readPiCredential(): Promise<Credential | null> {
+  try {
+    const parsed: unknown = JSON.parse(await readFile(join(homedir(), PI_AUTH_PATH), "utf8"));
+    if (!isObject(parsed) || !isObject(parsed["anthropic"])) {
+      return null;
+    }
+    const entry = parsed["anthropic"];
+    const accessToken = asString(entry["access"]);
+    if (accessToken === undefined) {
+      return null;
+    }
+    return { accessToken, expiresAt: asNumber(entry["expires"]) };
+  } catch {
+    return null;
+  }
+}
+
 async function readKeychainCredential(): Promise<Credential | null> {
   if (process.platform !== "darwin") {
     return null;
@@ -144,7 +167,10 @@ async function getCredential(): Promise<Credential | null> {
   if (cached !== null && now - cached.readAt < CREDENTIAL_TTL_MS) {
     return cached.credential;
   }
-  const credential = (await readKeychainCredential()) ?? (await readFileCredential());
+  const credential =
+    (await readPiCredential()) ??
+    (await readKeychainCredential()) ??
+    (await readFileCredential());
   if (credential === null) {
     return null;
   }
