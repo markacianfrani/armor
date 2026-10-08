@@ -1,0 +1,80 @@
+# Subagent
+
+Observable Pi subagents in Herdr tabs.
+
+Each subagent is a separate Pi process with its own JSONL session file, running in a dedicated Herdr tab. The parent can inspect status, wait for durable results, steer active work, queue follow-ups, or focus the child's tab directly.
+
+## Requirements
+
+- Pi running inside Herdr
+- Node.js 22.19 or newer
+
+## Install
+
+Linked by `armor init`:
+
+- `extensions/subagent/` → `~/.pi/agent/extensions/subagent`
+- `extensions/subagent/subagent.ts` → `~/.pi/agent/bin/subagent`
+
+Run `/reload` in an existing Pi session. The extension contributes its bundled skill automatically.
+
+## Usage
+
+Spawn with a descriptive name using the parent session's provider, model, and thinking level:
+
+```sh
+subagent spawn --name review --prompt "Review the current diff independently"
+```
+
+Names appear in the parent UI. Generated handles remain the stable identifiers used by management commands.
+
+Override the model configuration when needed:
+
+```sh
+subagent spawn \
+  --provider openai-codex \
+  --model gpt-5.4-mini \
+  --thinking low \
+  --prompt "Find the relevant implementation"
+```
+
+Provide multiple prompt fragments and files:
+
+```sh
+subagent spawn \
+  --file /tmp/spec.md \
+  --prompt "Implement this specification" \
+  --prompt "Run the targeted tests"
+```
+
+Restrict tools for a read-only investigation:
+
+```sh
+subagent spawn --tools read,grep,find,ls --prompt "Investigate the failure"
+```
+
+Manage a run by its generated handle:
+
+```sh
+subagent status a1b2c3
+subagent rename a1b2c3 "error handling review"
+subagent send a1b2c3 "Focus on error handling"
+subagent send a1b2c3 --follow-up "Then summarize"
+subagent wait a1b2c3
+subagent stop a1b2c3
+subagent list
+```
+
+Use `/subagent` to select and focus an active child's Herdr tab. The status widget shows active names (or handles for unnamed runs) and their current state.
+
+## Isolation
+
+Optional spawn flags:
+
+- `--tools <names>`: comma-separated tool allowlist
+- `--no-extensions`: disable extension discovery while retaining the control bridge
+- `--no-skills`: disable skills
+- `--no-prompt-templates`: disable prompt templates
+- `--no-context-files`: ignore repository instruction files
+
+Nested subagents are disabled. Child sessions do not receive the subagent skill. Children survive `/reload` and keep running in their Herdr tabs after the parent session quits. `subagent stop` closes the tab and removes the run transcript and metadata.

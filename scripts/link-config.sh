@@ -158,6 +158,67 @@ link_extensions() {
   done
 }
 
+link_extension_dirs() {
+  local source_dir="$1"
+  shift
+  local targets=("$@")
+
+  for source_entry in "$source_dir"/*; do
+    [ -d "$source_entry" ] || continue
+    local name
+    name=$(basename "$source_entry")
+
+    for target_dir in "${targets[@]}"; do
+      mkdir -p "$target_dir"
+      local target="$target_dir/$name"
+
+      if [ -L "$target" ] && [ "$(readlink "$target")" = "$source_entry" ]; then
+        skipped=$((skipped + 1))
+        continue
+      fi
+
+      if [ -e "$target" ] && [ ! -L "$target" ]; then
+        mv "$target" "${target}.bak"
+        backed_up=$((backed_up + 1))
+      fi
+
+      [ -L "$target" ] && rm -f "$target"
+      ln -s "$source_entry" "$target"
+      linked=$((linked + 1))
+    done
+  done
+}
+
+link_extension_clis() {
+  local source_dir="$1"
+  local target_dir="$2"
+
+  for source_entry in "$source_dir"/*/; do
+    [ -d "$source_entry" ] || continue
+    local name
+    name=$(basename "$source_entry")
+    local source_cli="$source_entry$name.ts"
+    [ -f "$source_cli" ] || continue
+
+    mkdir -p "$target_dir"
+    local target="$target_dir/$name"
+
+    if [ -L "$target" ] && [ "$(readlink "$target")" = "$source_cli" ]; then
+      skipped=$((skipped + 1))
+      continue
+    fi
+
+    if [ -e "$target" ] && [ ! -L "$target" ]; then
+      mv "$target" "${target}.bak"
+      backed_up=$((backed_up + 1))
+    fi
+
+    [ -L "$target" ] && rm -f "$target"
+    ln -s "$source_cli" "$target"
+    linked=$((linked + 1))
+  done
+}
+
 remove_stale_links() {
   for stale_dir in "${OLD_TARGETS[@]}"; do
     [ -d "$stale_dir" ] || continue
@@ -178,6 +239,8 @@ link_md_dir "$AGENTS_DIR" "${SHARED_AGENT_TARGETS[@]}" "${CLAUDE_AGENT_TARGETS[@
 link_md_dir "$COMMANDS_DIR" "${SHARED_COMMAND_TARGETS[@]}" "${CLAUDE_COMMAND_TARGETS[@]}"
 link_skill_dir "$SKILLS_DIR" "${SHARED_SKILL_TARGETS[@]}" "${CLAUDE_SKILL_TARGETS[@]}"
 link_extensions "$EXTENSIONS_DIR" "${PI_EXTENSION_TARGETS[@]}"
+link_extension_dirs "$EXTENSIONS_DIR" "${PI_EXTENSION_TARGETS[@]}"
+link_extension_clis "$EXTENSIONS_DIR" "$HOME/.pi/agent/bin"
 
 # OpenCode compatibility alias in shared commands
 mkdir -p "$HOME/.agents/commands"

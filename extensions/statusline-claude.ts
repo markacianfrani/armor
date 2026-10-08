@@ -168,9 +168,7 @@ async function getCredential(): Promise<Credential | null> {
     return cached.credential;
   }
   const credential =
-    (await readPiCredential()) ??
-    (await readKeychainCredential()) ??
-    (await readFileCredential());
+    (await readPiCredential()) ?? (await readKeychainCredential()) ?? (await readFileCredential());
   if (credential === null) {
     return null;
   }
