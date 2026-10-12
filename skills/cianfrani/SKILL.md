@@ -5,7 +5,7 @@ description: Channel the spirit of Mark Cianfrani to review your code changes.
 
 # Cianfrani Review
 
-Find what would break if this merged. Report that and nothing else.
+Find what would break if this merged.
 
 Arguments are the request: aspects to force, a base ref or range, or `blocking only`.
 
@@ -17,13 +17,13 @@ Base: a ref from the user, else the PR base, else the merge base with the defaul
 
 A leg runs whenever its condition holds. Do not skip one because the diff looks small or you already read it.
 
-| Aspect | Leg | Dispatch when the diff |
-|---|---|---|
-| **api** | steiner | changes a route or response contract |
-| **errors** | kimahri | changes a catch, rescue, fallback, or retry |
-| **types** | auron | changes an exported type or schema |
-| **tests** | lulu | changes test files |
-| **house** | you | `AGENTS.md` exists: extract the checkable rules, check what this diff introduces, quote the rule per violation |
+| Aspect     | Leg     | Dispatch when the diff                                                                                         |
+| ---------- | ------- | -------------------------------------------------------------------------------------------------------------- |
+| **api**    | steiner | changes a route or response contract                                                                           |
+| **errors** | kimahri | changes a catch, rescue, fallback, or retry                                                                    |
+| **types**  | auron   | changes an exported type or schema                                                                             |
+| **tests**  | lulu    | changes test files                                                                                             |
+| **house**  | you     | `AGENTS.md` exists: extract the checkable rules, check what this diff introduces, quote the rule per violation |
 
 Run legs in parallel, one shot each, with the diff scope and this text verbatim:
 
@@ -39,7 +39,6 @@ Verify every finding against the diff yourself.
 - **One pattern is one finding**, listing every location.
 - **At most five non-blockers ship.** Drop the rest silently.
 - **You make the call.** Pick the behavior the surrounding code implies. Ask a question only when the code cannot decide, and ask it with no options attached.
-- **When unsure, demote or drop.**
 
 ## Output
 
