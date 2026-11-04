@@ -5,11 +5,15 @@
  * Polls the OpenRouter key API when the active model is openrouter.
  *
  * Endpoint: GET https://openrouter.ai/api/v1/key
- * Response: { data: { limit, limit_remaining, usage, ... } }
+ * Response: { data: { budgets, effective_budget, limit, usage_monthly, ... } }
  *
- * Shows the configured credit limit usage for the current API key. Keys with
- * no limit return null limit/limit_remaining and are treated as unlimited, so
- * no usage bar is published.
+ * Window published: the user's member budget (scope `workspace_default_member`),
+ * falling back to `effective_budget` — the layer enforcement blocks on first —
+ * when no member-scoped budget exists. Rendered as a percent bar with a
+ * reset timestamp, like the Claude provider's windows.
+ *
+ * Keys with no enforced budget fall back to a plain label of the current
+ * month's spend.
  */
 
 import type { Api, Model } from "@earendil-works/pi-ai";
@@ -53,11 +57,47 @@ interface UsageWindow {
 }
 
 function asNumber(value: unknown): number | undefined {
-  return typeof value === "number" ? value : undefined;
+  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+}
+
+function asString(value: unknown): string | undefined {
+  return typeof value === "string" && value !== "" ? value : undefined;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
+}
+
+/** Accepts ISO 8601 strings, unix seconds, or unix milliseconds. */
+function asEpochSeconds(value: unknown): number | undefined {
+  const str = asString(value);
+  if (str !== undefined) {
+    const parsed = Date.parse(str);
+    return Number.isNaN(parsed) ? undefined : Math.floor(parsed / 1000);
+  }
+  const numeric = asNumber(value);
+  if (numeric === undefined || numeric <= 0) {
+    return undefined;
+  }
+  return numeric > 1e11 ? Math.floor(numeric / 1000) : Math.floor(numeric);
+}
+
+/** A budget layer (guardrail / workspace / key limit) enforced on this key. */
+interface RawBudget {
+  limit_usd?: unknown;
+  remaining_usd?: unknown;
+  resets_at?: unknown;
+  scope?: unknown;
+}
+
+function budgetWindow(raw: RawBudget): UsageWindow | null {
+  const limit = asNumber(raw.limit_usd);
+  const remaining = asNumber(raw.remaining_usd);
+  if (limit === undefined || limit <= 0 || remaining === undefined) {
+    return null;
+  }
+  const usedPercent = Math.min(100, Math.max(0, ((limit - remaining) / limit) * 100));
+  return { resetAt: asEpochSeconds(raw.resets_at), usedPercent };
 }
 
 function normalize(json: unknown): UsageWindow[] | null {
@@ -70,22 +110,21 @@ function normalize(json: unknown): UsageWindow[] | null {
     return null;
   }
 
-  const limit = asNumber(key["limit"]);
-  const remaining = asNumber(key["limit_remaining"]);
-  // total spent in USD
-  const usage = asNumber(key["usage"]);
-
-  const label = usage !== undefined && usage > 0 ? `$${usage.toFixed(2)}` : undefined;
-
-  // If the key has a credit limit, show a percentage bar + dollar label
-  if (limit !== undefined && limit > 0 && remaining !== undefined) {
-    const usedPercent = ((limit - remaining) / limit) * 100;
-    return [{ label, usedPercent: Math.min(100, Math.max(0, usedPercent)) }];
+  // The user's member budget; effective_budget (the layer enforcement
+  // blocks on first) is the fallback when no member-scoped budget exists.
+  const budgets = key["budgets"];
+  const raw = Array.isArray(budgets)
+    ? budgets.find((b): b is RawBudget => isRecord(b) && b["scope"] === "workspace_default_member")
+    : undefined;
+  const window = budgetWindow(raw ?? (isRecord(key["effective_budget"]) ? key["effective_budget"] : {}));
+  if (window) {
+    return [window];
   }
 
-  // No limit (pay-as-you-go) — show dollar amount only
-  if (label !== undefined) {
-    return [{ label }];
+  // No enforced budget (pay-as-you-go) — plain label of this month's spend.
+  const monthly = asNumber(key["usage_monthly"]);
+  if (monthly !== undefined) {
+    return [{ label: `$${monthly.toFixed(2)}` }];
   }
 
   return null;
