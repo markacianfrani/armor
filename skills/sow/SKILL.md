@@ -7,7 +7,7 @@ description: >
   "configure typescript", or "sow".
 metadata:
   author: Mark Anthony Cianfrani
-  version: "0.3"
+  version: "0.8"
 ---
 
 # Sow - TypeScript Project Setup
@@ -53,27 +53,29 @@ Using the detected package manager:
 
 ```bash
 # bun
-bun add -d oxlint oxfmt typescript @j178/prek knip
+bun add -d @cianfrani/oxlint-config oxlint oxfmt typescript @j178/prek knip
 
 # pnpm
-pnpm add -D oxlint oxfmt typescript @j178/prek knip
+pnpm add -D @cianfrani/oxlint-config oxlint oxfmt typescript @j178/prek knip
 
 # yarn
-yarn add -D oxlint oxfmt typescript @j178/prek knip
+yarn add -D @cianfrani/oxlint-config oxlint oxfmt typescript @j178/prek knip
 
 # npm
-npm install -D oxlint oxfmt typescript @j178/prek knip
+npm install -D @cianfrani/oxlint-config oxlint oxfmt typescript @j178/prek knip
 ```
 
 ### 2. Create/Update Configs
 
 Copy configs from the `references/` folder:
 
-- `references/oxlintrc.json` → `.oxlintrc.json`
+- `references/oxlintrc.json` → `.oxlintrc.json` (a thin stub — it `extends` the base config shipped in `@cianfrani/oxlint-config`; only per-project overrides live in the stub)
 - `references/oxfmtrc.json` → `.oxfmtrc.json`
 - `references/tsconfig.json` → `tsconfig.json`
 
-**Lint config posture.** Deliberately loud, and the `"off"` rules are intentional — they kill formatter conflicts, wrong-environment rules, mutually-exclusive pairs that ping-pong under `--fix`, and cross-plugin double-reporting. The ping-pong pairs are: `no-ternary`/`prefer-ternary`, and the vitest `prefer-to-be-truthy`/`prefer-to-be-falsy` (which autofix `toBe(true)`→`toBeTruthy()`) vs `prefer-strict-boolean-matchers` (which autofixes it straight back) — all three sit in the Style category, so `style: warn` turns them on together; disabling the two deprecated aliases keeps the strict matcher and ends the war. Don't re-enable an off without checking why it's off. One invisible trap: `plugins` _overwrites_ oxlint's defaults instead of extending them, so the list must name every default too (`eslint`, `typescript`, `unicorn`, `oxc`) — drop `oxc` and you silently lose its rules.
+The lint posture itself — error-only categories, the deliberate `"off"` list, complexity guardrails, test overrides, and the 12 quality rules — is **not copied**: it ships in `packages/oxlint-config/base.json` inside `@cianfrani/oxlint-config` (this repo is the source). The stub `extends` it; updates flow through the package manager (`npm update @cianfrani/oxlint-config`), not through re-copying configs. If the project disagrees with the posture, the stub overrides — for example, if its tsconfig sets `emitDecoratorMetadata: true`, the stub sets `"typescript/consistent-type-imports": "off"`.
+
+**Lint config posture.** Error, never warn — warnings are noise that gets ignored; either it's an issue or it isn't, so every enabled category (`correctness`, `suspicious`, `pedantic`, `style`, `perf`) and every explicit rule is `"error"`. Findings get fixed or suppressed with an explicit `// oxlint-disable` comment, never tolerated as background noise. The `"off"` rules are intentional — they kill formatter conflicts, wrong-environment rules, mutually-exclusive pairs that ping-pong under `--fix`, and cross-plugin double-reporting. The ping-pong pairs are: `no-ternary`/`prefer-ternary`, and the vitest `prefer-to-be-truthy`/`prefer-to-be-falsy` (which autofix `toBe(true)`→`toBeTruthy()`) vs `prefer-strict-boolean-matchers` (which autofixes it straight back) — all three sit in the Style category, so `style: error` turns them on together; disabling the two deprecated aliases keeps the strict matcher and ends the war. Don't re-enable an off without checking why it's off. One invisible trap: `plugins` _overwrites_ oxlint's defaults instead of extending them, so the list must name every default too (`eslint`, `typescript`, `unicorn`, `oxc`) — drop `oxc` and you silently lose its rules.
 
 For tsconfig, adjust the `@src/*` path mapping to match the project structure. The config has no `baseUrl` — TypeScript 6.0 made it a hard error, so `paths` values are relative (`./src/*`) and resolve from the tsconfig's location.\*
 
@@ -82,6 +84,18 @@ For tsconfig, adjust the `@src/*` path mapping to match the project structure. T
 ### 2a. Ensure a .gitignore
 
 The project **must** have a `.gitignore` that ignores `node_modules` (also ignore build output: `dist/`, `build/`, `coverage/`, and `.env`). oxlint obeys `.gitignore` to decide what to skip. Without `node_modules` ignored, `oxlint` walks the entire dependency tree and hangs. If a `.gitignore` exists, append the missing entries; otherwise create one.
+
+### 2b. Quality plugin (anti-slop rules)
+
+The 12 quality rules ship **inside `@cianfrani/oxlint-config`** — `packages/oxlint-config/quality/` in this repo, loaded by `jsPlugins` in `base.json`, adapted from [dmmulroy/anti-slop](https://github.com/dmmulroy/anti-slop) via [nkzw-tech/oxlint-config](https://github.com/nkzw-tech/oxlint-config) (MIT). The rule table with what each one catches lives in `packages/oxlint-config/README.md` — keep that README updated when touching the rules; scaffolded projects read it through the package.
+
+What matters at scaffold time:
+
+- They are plain-AST rules — they run in the default syntactic `oxlint` pass, no type-aware backend. The package declares `oxlint >= 1.94` as its peer (the `jsPlugins` API is alpha but stable in practice for these rules).
+- Nothing to copy — installing the dependency and `extends`-ing `base.json` wires everything. Updates flow through the package manager, not through re-vendoring.
+- They are report-only (no autofixes) — they can't oscillate under `--fix`, and `--fix` convergence was verified (fixpoint after one pass, stable across an oxfmt round-trip). One interaction to know: inside a reducer, `unicorn/prefer-spread` co-fires with `quality/no-reduce-accumulator-copy`, and its suggested fix (`[...acc, x]`) still copies the accumulator — use `flatMap` or an iterator pipeline to satisfy both.
+- `base.json` ignores `quality/**` — the plugin is vendor code that would otherwise trip style rules (`unicorn/no-null` and friends). Verified the pattern resolves against the package's own files and does **not** silence a `quality/` directory in the consuming project.
+- Knip: scaffolded projects never need an ignore — the plugin ships inside `node_modules`, which Knip skips. Only this repo (armor), where the plugin source sits in-tree, would add `"ignoreFiles": ["packages/oxlint-config/quality/**"]`.
 
 ### 3. Add Package Scripts
 
@@ -111,7 +125,7 @@ If they choose to remove, delete:
 
 ### 5. Type-Aware Linting (opt-in)
 
-Type-aware rules are **off by default** and not in `.oxlintrc.json`. They need a second binary (`oxlint-tsgolint@7`, a Go backend that embeds the TypeScript compiler) and run slower than the syntactic pass. Leaving them out keeps the default `lint` honest — every rule in the base config actually runs.
+Type-aware rules are **off by default** and not in `.oxlintrc.json`. They need a second binary — **tsrs**, the Rust backend built on oxc's TypeScript runner (oxlint auto-detects it when installed; `oxlint-tsgolint` is the older Go alternative, same flags) — and run slower than the syntactic pass. Leaving them out keeps the default `lint` honest — every rule in the base config actually runs.
 
 The `--tsconfig` flag on the default `lint` script does **not** enable these rules. It only points oxlint's import plugin at the tsconfig for path-alias resolution. Type-aware rules require a separate flag and binary.
 
@@ -120,8 +134,10 @@ To turn type-aware linting on for a project:
 1. Install the backend:
 
    ```bash
-   <pkg-manager> add -D oxlint-tsgolint@7
+   <pkg-manager> add -D tsrs
    ```
+
+   Pin it in devDependencies like any other package. Its version looks like `0.25.0-ts7.1.0-beta` — it tracks the TypeScript version it embeds, so upgrades there are like TS upgrades: deliberate, in their own commit.
 
 2. Add the rules to `.oxlintrc.json`:
 
@@ -143,6 +159,8 @@ To turn type-aware linting on for a project:
 
    `consistent-type-exports` mirrors the base config's `consistent-type-imports` — it needs types to know which exports are type-only. `strict-void-return` widens `no-misused-promises` to every void-returning position, not just promises; it can be noisy on event handlers.
 
+In monorepos, type-aware linting needs resolved types: install dependencies and build dependent workspace packages first (`pnpm install && pnpm -r build`) so their `.d.ts` files exist, or the backend builds programs against missing shapes.
+
 3. Add `--type-aware` to the existing `lint` script so there is still one lint command, and it's the strong one:
 
    ```json
@@ -151,7 +169,7 @@ To turn type-aware linting on for a project:
 
    Don't ship a separate `lint:type-aware` script — a second command just means people run the weaker one by reflex and feel covered when they aren't. Make `lint` the full check.
 
-   `--type-aware` turns on the typescript plugin's **whole** type-aware rule set, not only the ones you listed. Findings will surface from rules you never wrote down — commonly `typescript/unbound-method` and `typescript/no-redundant-type-constituents`. Decide each per project: fix the code, or set the rule `"off"` with a reason. (Example: `unbound-method` fires on every destructured method, so a codebase whose core pattern is `const { method } = ctx` turns it off rather than fight its own idiom.)
+   `--type-aware` turns on the typescript plugin's **whole** type-aware rule set, not only the ones you listed. Findings will surface from rules you never wrote down — commonly `typescript/unbound-method`, `typescript/no-redundant-type-constituents`, and `typescript/no-unsafe-type-assertion`. Decide each per project: fix the code, or set the rule `"off"` with a reason. (Example: `unbound-method` fires on every destructured method, so a codebase whose core pattern is `const { method } = ctx` turns it off rather than fight its own idiom.) Use `--type-aware --debug timings` to see which rules cost the most before turning one off for performance.
 
    To fold type-checking into the same run, add `--type-check`. It reports tsc's compiler errors from the TypeScript program the linter already built, instead of a separate `tsc` pass.
 
@@ -159,11 +177,11 @@ To turn type-aware linting on for a project:
 
 The pre-commit hook can stay syntactic-only (type-aware is too slow for the inner loop). Run the full type-aware `lint` in CI, where it's the real gate. That fast/slow split is local-vs-CI, not two scripts a developer juggles.
 
-Without `oxlint-tsgolint` installed, `--type-aware` fails fast with: `Failed to find tsgolint executable. You may need to add the 'oxlint-tsgolint' package to your project?` — so it never silently no-ops.
+Without `tsrs` (or `oxlint-tsgolint`) installed, `--type-aware` fails fast with: `Failed to find type-aware linter executable. You may need to add the `tsrs` or `oxlint-tsgolint` package to your project?` — so it never silently no-ops.
 
 ### 6. Complexity Rules
 
-The oxlint config includes complexity guardrails as warnings with high defaults — they're meant to catch egregious cases, not nag on normal code:
+The oxlint config includes complexity guardrails as errors with high defaults — they're meant to catch egregious cases, not nag on normal code (they're `"error"` like everything else, per the error-only posture):
 
 | Rule                     | Default | What it limits                               |
 | ------------------------ | ------- | -------------------------------------------- |

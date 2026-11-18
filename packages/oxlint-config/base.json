@@ -1,0 +1,142 @@
+{
+  "$schema": "https://raw.githubusercontent.com/oxc-project/oxc/refs/heads/main/npm/oxlint/configuration_schema.json",
+  "jsPlugins": ["./quality/index.mjs"],
+  "ignorePatterns": ["quality/**"],
+  "plugins": [
+    "eslint",
+    "typescript",
+    "unicorn",
+    "import",
+    "oxc",
+    "promise",
+    "node",
+    "vitest"
+  ],
+  "categories": {
+    "correctness": "error",
+    "suspicious": "error",
+    "pedantic": "error",
+    "style": "error",
+    "perf": "error"
+  },
+  "rules": {
+    "curly": "error",
+    "eqeqeq": "error",
+    "no-implicit-coercion": "error",
+    "no-throw-literal": "error",
+    "no-var": "error",
+    "no-new-wrappers": "error",
+    "typescript/no-explicit-any": "error",
+    "typescript/no-non-null-assertion": "error",
+    "typescript/consistent-type-imports": "error",
+    "typescript/consistent-type-assertions": "error",
+    "import/no-cycle": "error",
+    "import/no-duplicates": "error",
+    "import/no-nodejs-modules": "off",
+    "import/no-named-export": "off",
+    "import/group-exports": "off",
+    "sort-imports": "off",
+    "no-ternary": "off",
+    "init-declarations": "off",
+    "func-style": "off",
+    "no-magic-numbers": "off",
+    "capitalized-comments": "off",
+    "vitest/prefer-to-be-truthy": "off",
+    "vitest/prefer-to-be-falsy": "off",
+    "vitest/require-hook": "off",
+    "typescript/no-implied-eval": "off",
+    "typescript/prefer-promise-reject-errors": "off",
+    "typescript/require-await": "off",
+    "typescript/prefer-includes": "off",
+    "typescript/prefer-string-starts-ends-with": "off",
+    "unicorn/no-lonely-if": "off",
+    "unicorn/no-negated-condition": "off",
+    "unicorn/no-nested-ternary": "off",
+    "quality/no-array-filter-map": "error",
+    "quality/no-chained-type-assertions": "error",
+    "quality/no-conditional-empty-object-spread": "error",
+    "quality/no-known-value-widening": "error",
+    "quality/no-object-parameters": "error",
+    "quality/no-reduce-accumulator-copy": "error",
+    "quality/no-reflect-apply": "error",
+    "quality/no-reflect-get": "error",
+    "quality/no-unknown-returns": "error",
+    "quality/no-unknown-type-aliases": "error",
+    "quality/no-unsafe-dictionary-type": "error",
+    "quality/no-widen-then-assert": "error",
+    "unicorn/prefer-node-protocol": "error",
+    "unicorn/prefer-spread": "error",
+    "unicorn/no-useless-spread": "error",
+    "unicorn/consistent-function-scoping": "error",
+    "max-lines": [
+      "error",
+      {
+        "max": 900,
+        "skipBlankLines": true,
+        "skipComments": true
+      }
+    ],
+    "complexity": [
+      "error",
+      {
+        "max": 20
+      }
+    ],
+    "max-params": [
+      "error",
+      {
+        "max": 6
+      }
+    ],
+    "max-depth": [
+      "error",
+      {
+        "max": 5
+      }
+    ],
+    "max-statements": [
+      "error",
+      {
+        "max": 40
+      }
+    ],
+    "max-lines-per-function": [
+      "error",
+      {
+        "max": 150,
+        "skipBlankLines": true,
+        "skipComments": true
+      }
+    ],
+    "max-nested-callbacks": [
+      "error",
+      {
+        "max": 4
+      }
+    ]
+  },
+  "overrides": [
+    {
+      "files": [
+        "**/__tests__/**",
+        "**/*.test.ts",
+        "**/*.spec.ts"
+      ],
+      "rules": {
+        "max-nested-callbacks": "off",
+        "max-statements": "off",
+        "max-lines-per-function": "off",
+        "vitest/require-hook": "error",
+        "vitest/no-focused-tests": "error",
+        "vitest/no-disabled-tests": "error",
+        "vitest/valid-expect": "error"
+      }
+    }
+  ],
+  "env": {
+    "node": true
+  },
+  "options": {
+    "reportUnusedDisableDirectives": "error"
+  }
+}

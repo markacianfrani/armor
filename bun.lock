@@ -5,6 +5,7 @@
     "": {
       "name": "armor",
       "devDependencies": {
+        "@cianfrani/oxlint-config": "workspace:*",
         "@earendil-works/pi-ai": "^0.87.1",
         "@earendil-works/pi-coding-agent": "^0.87.1",
         "@earendil-works/pi-tui": "^0.87.1",
@@ -13,6 +14,13 @@
         "oxlint": "^1.58.0",
         "oxlint-tsgolint": "^0.23.0",
         "typescript": "^6.0.2",
+      },
+    },
+    "packages/oxlint-config": {
+      "name": "@cianfrani/oxlint-config",
+      "version": "0.1.0",
+      "peerDependencies": {
+        "oxlint": ">=1.94.0",
       },
     },
   },
@@ -58,6 +66,8 @@
     "@aws/lambda-invoke-store": ["@aws/lambda-invoke-store@0.3.0", "", {}, "sha512-sl4Bm6yiMNYrZKkqqDFWN0UfnWhlS8ivKxrYl+6t0gCLrqr8y3B2IqZZbFRkfaVVp7C/baApyh71P+LeE1A2sQ=="],
 
     "@babel/runtime": ["@babel/runtime@7.29.7", "", {}, "sha512-Nq8OhGWiZIZGV6hLHoyAKLLcJihP/xFeBMGJoUrxTX2psI8dCifzLhZISFb+VWS3wFMRDmCGw5R+dOySCqPLhw=="],
+
+    "@cianfrani/oxlint-config": ["@cianfrani/oxlint-config@workspace:packages/oxlint-config"],
 
     "@earendil-works/chord": ["@earendil-works/chord@0.87.1", "", { "dependencies": { "esbuild": "0.28.2" } }, "sha512-bg7IkJGFcEaMqqYgOGUiq5Ky9RghpRfrlZ8I/v/1b4bBZ02A7t3E+6uhPRbadwWb/kWsnVFbZsqOKRN4a3LLCg=="],
 

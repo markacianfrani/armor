@@ -1,0 +1,31 @@
+{
+  "name": "@cianfrani/oxlint-config",
+  "version": "0.1.0",
+  "description": "Opinionated oxlint config: error-only posture plus a vendored anti-slop quality plugin.",
+  "keywords": [
+    "oxlint",
+    "lint",
+    "config",
+    "typescript",
+    "code-quality"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/markacianfrani/armor.git",
+    "directory": "packages/oxlint-config"
+  },
+  "type": "module",
+  "files": [
+    "quality",
+    "base.json",
+    "README.md",
+    "LICENSE"
+  ],
+  "exports": {
+    "./*": "././*"
+  },
+  "peerDependencies": {
+    "oxlint": ">=1.94.0"
+  }
+}
