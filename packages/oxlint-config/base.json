@@ -38,6 +38,7 @@
     "sort-imports": "off",
     "no-ternary": "off",
     "init-declarations": "off",
+    "one-var": "off",
     "func-style": "off",
     "no-magic-numbers": "off",
     "capitalized-comments": "off",
