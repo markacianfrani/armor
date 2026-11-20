@@ -23,12 +23,12 @@
  */
 
 function isTypeAssertionExpression(node) {
-  return node.type === 'TSAsExpression' || node.type === 'TSTypeAssertion';
+  return node.type === "TSAsExpression" || node.type === "TSTypeAssertion";
 }
 
 function unwrapParenthesizedExpression(expression) {
   let current = expression;
-  while (current.type === 'ParenthesizedExpression') {
+  while (current.type === "ParenthesizedExpression") {
     current = current.expression;
   }
   return current;
@@ -37,9 +37,9 @@ function unwrapParenthesizedExpression(expression) {
 function isConstAssertion(node) {
   const { typeAnnotation } = node;
   return (
-    typeAnnotation.type === 'TSTypeReference' &&
-    typeAnnotation.typeName.type === 'Identifier' &&
-    typeAnnotation.typeName.name === 'const'
+    typeAnnotation.type === "TSTypeReference" &&
+    typeAnnotation.typeName.type === "Identifier" &&
+    typeAnnotation.typeName.name === "const"
   );
 }
 
@@ -47,7 +47,7 @@ function isOutermostAssertionInChain(node) {
   let current = node;
   let parent = node.parent;
 
-  while (parent.type === 'ParenthesizedExpression' && parent.expression === current) {
+  while (parent.type === "ParenthesizedExpression" && parent.expression === current) {
     current = parent;
     parent = parent.parent;
   }
@@ -76,7 +76,7 @@ export const noChainedTypeAssertionsRule = {
       if (!isOutermostAssertionInChain(node) || !isForbiddenAssertionChain(node)) {
         return;
       }
-      context.report({ messageId: 'chained', node });
+      context.report({ messageId: "chained", node });
     };
 
     return {
@@ -87,12 +87,12 @@ export const noChainedTypeAssertionsRule = {
   meta: {
     docs: {
       description:
-        'Disallow chained TypeScript as and angle-bracket assertions, including parenthesized chains.',
+        "Disallow chained TypeScript as and angle-bracket assertions, including parenthesized chains.",
     },
     messages: {
       chained:
-        'This assertion chain discards type evidence. Keep the original precise type, or parse untrusted input at its boundary before narrowing it.',
+        "This assertion chain discards type evidence. Keep the original precise type, or parse untrusted input at its boundary before narrowing it.",
     },
-    type: 'problem',
+    type: "problem",
   },
 };

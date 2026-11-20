@@ -1,14 +1,14 @@
-import { resolveVariable } from './scope.mjs';
+import { resolveVariable } from "./scope.mjs";
 
 /** Unwrap syntax-only wrappers when inspecting array methods and accumulator references. */
 export function unwrapArrayExpression(node) {
   while (
-    node.type === 'ParenthesizedExpression' ||
-    node.type === 'ChainExpression' ||
-    node.type === 'TSAsExpression' ||
-    node.type === 'TSTypeAssertion' ||
-    node.type === 'TSNonNullExpression' ||
-    node.type === 'TSSatisfiesExpression'
+    node.type === "ParenthesizedExpression" ||
+    node.type === "ChainExpression" ||
+    node.type === "TSAsExpression" ||
+    node.type === "TSTypeAssertion" ||
+    node.type === "TSNonNullExpression" ||
+    node.type === "TSSatisfiesExpression"
   ) {
     node = node.expression;
   }
@@ -18,7 +18,7 @@ export function unwrapArrayExpression(node) {
 /** Resolve a local binding by scope, not by identifier spelling. */
 export function resolveArrayBinding(sourceCode, node) {
   node = unwrapArrayExpression(node);
-  if (node.type !== 'Identifier') {
+  if (node.type !== "Identifier") {
     return null;
   }
   return resolveVariable(sourceCode, node);
@@ -27,60 +27,60 @@ export function resolveArrayBinding(sourceCode, node) {
 /** Read static method names, including computed string literals, without evaluating expressions. */
 export function arrayMethodTarget(node) {
   node = unwrapArrayExpression(node);
-  if (node.type !== 'MemberExpression') {
+  if (node.type !== "MemberExpression") {
     return null;
   }
   const property = node.property;
-  if (!node.computed && property.type === 'Identifier') {
+  if (!node.computed && property.type === "Identifier") {
     return { name: property.name, object: node.object };
   }
-  if (node.computed && property.type === 'Literal' && typeof property.value === 'string') {
+  if (node.computed && property.type === "Literal" && typeof property.value === "string") {
     return { name: property.value, object: node.object };
   }
   return null;
 }
 
 function isArrayAnnotation(type) {
-  if (type.type === 'TSArrayType' || type.type === 'TSTupleType') {
+  if (type.type === "TSArrayType" || type.type === "TSTupleType") {
     return true;
   }
-  if (type.type === 'TSParenthesizedType') {
+  if (type.type === "TSParenthesizedType") {
     return isArrayAnnotation(type.typeAnnotation);
   }
-  if (type.type === 'TSTypeOperator' && type.operator === 'readonly') {
+  if (type.type === "TSTypeOperator" && type.operator === "readonly") {
     return isArrayAnnotation(type.typeAnnotation);
   }
   return (
-    type.type === 'TSTypeReference' &&
-    type.typeName.type === 'Identifier' &&
-    (type.typeName.name === 'Array' || type.typeName.name === 'ReadonlyArray')
+    type.type === "TSTypeReference" &&
+    type.typeName.type === "Identifier" &&
+    (type.typeName.name === "Array" || type.typeName.name === "ReadonlyArray")
   );
 }
 
 /** Recognize local array evidence; unknown receivers and iterator pipelines are deliberately excluded. */
 export function isKnownArrayExpression(sourceCode, node, visited = new Set()) {
   node = unwrapArrayExpression(node);
-  if (node.type === 'ArrayExpression') {
+  if (node.type === "ArrayExpression") {
     return true;
   }
-  if (node.type === 'CallExpression') {
+  if (node.type === "CallExpression") {
     const method = arrayMethodTarget(node.callee);
     return (
       method !== null &&
       [
-        'map',
-        'filter',
-        'flatMap',
-        'slice',
-        'concat',
-        'toSorted',
-        'toReversed',
-        'toSpliced',
+        "map",
+        "filter",
+        "flatMap",
+        "slice",
+        "concat",
+        "toSorted",
+        "toReversed",
+        "toSpliced",
       ].includes(method.name) &&
       isKnownArrayExpression(sourceCode, method.object, visited)
     );
   }
-  if (node.type !== 'Identifier') {
+  if (node.type !== "Identifier") {
     return false;
   }
   const variable = resolveArrayBinding(sourceCode, node);
@@ -99,12 +99,12 @@ export function isKnownArrayExpression(sourceCode, node, visited = new Set()) {
   }
   for (const definition of variable.defs) {
     if (
-      definition.type === 'Variable' &&
-      definition.node.type === 'VariableDeclarator' &&
-      definition.node.id.type === 'Identifier' &&
+      definition.type === "Variable" &&
+      definition.node.type === "VariableDeclarator" &&
+      definition.node.id.type === "Identifier" &&
       definition.node.init !== null &&
-      definition.node.parent.type === 'VariableDeclaration' &&
-      definition.node.parent.kind === 'const'
+      definition.node.parent.type === "VariableDeclaration" &&
+      definition.node.parent.kind === "const"
     ) {
       return isKnownArrayExpression(sourceCode, definition.node.init, visited);
     }

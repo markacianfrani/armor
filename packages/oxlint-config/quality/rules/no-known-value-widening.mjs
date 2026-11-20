@@ -26,23 +26,23 @@ import {
   classifyUnsafeDictionaryValue,
   classifyWideningTarget,
   isKnownEvidenceExpression,
-} from '../shared/dictionary-types.mjs';
+} from "../shared/dictionary-types.mjs";
 import {
   containsUnknownType,
   functionParameterBindingName,
   functionParameterTypeAnnotation,
-} from '../shared/function-parameters.mjs';
-import { resolveVariable } from '../shared/scope.mjs';
-import { withTypeBindings } from '../shared/type-alias-resolution.mjs';
+} from "../shared/function-parameters.mjs";
+import { resolveVariable } from "../shared/scope.mjs";
+import { withTypeBindings } from "../shared/type-alias-resolution.mjs";
 
 function unwrapExpression(expression) {
   let current = expression;
   while (
-    current.type === 'ParenthesizedExpression' ||
-    current.type === 'TSAsExpression' ||
-    current.type === 'TSSatisfiesExpression' ||
-    current.type === 'TSTypeAssertion' ||
-    current.type === 'TSNonNullExpression'
+    current.type === "ParenthesizedExpression" ||
+    current.type === "TSAsExpression" ||
+    current.type === "TSSatisfiesExpression" ||
+    current.type === "TSTypeAssertion" ||
+    current.type === "TSNonNullExpression"
   ) {
     current = current.expression;
   }
@@ -54,15 +54,15 @@ function variableDeclarator(variable) {
     return null;
   }
   const [definition] = variable.defs;
-  return definition?.type === 'Variable' && definition.node.type === 'VariableDeclarator'
+  return definition?.type === "Variable" && definition.node.type === "VariableDeclarator"
     ? definition.node
     : null;
 }
 
 function isStableConstVariable(variable, declarator) {
   return (
-    declarator.parent.type === 'VariableDeclaration' &&
-    declarator.parent.kind === 'const' &&
+    declarator.parent.type === "VariableDeclaration" &&
+    declarator.parent.kind === "const" &&
     variable.references.every((reference) => reference.init || !reference.isWrite())
   );
 }
@@ -72,7 +72,7 @@ function hasKnownEvidence(sourceCode, expression, visitedVariables = new Set()) 
     return true;
   }
   const unwrapped = unwrapExpression(expression);
-  if (unwrapped.type !== 'Identifier') {
+  if (unwrapped.type !== "Identifier") {
     return false;
   }
   const variable = resolveVariable(sourceCode, unwrapped);
@@ -93,11 +93,11 @@ function hasKnownEvidence(sourceCode, expression, visitedVariables = new Set()) 
 
 function isFunctionExpression(node) {
   return (
-    node.type === 'ArrowFunctionExpression' ||
-    node.type === 'FunctionDeclaration' ||
-    node.type === 'FunctionExpression' ||
-    node.type === 'TSDeclareFunction' ||
-    node.type === 'TSEmptyBodyFunctionExpression'
+    node.type === "ArrowFunctionExpression" ||
+    node.type === "FunctionDeclaration" ||
+    node.type === "FunctionExpression" ||
+    node.type === "TSDeclareFunction" ||
+    node.type === "TSEmptyBodyFunctionExpression"
   );
 }
 
@@ -106,7 +106,7 @@ function localFunctionForCall(sourceCode, callee) {
   if (isFunctionExpression(unwrapped)) {
     return unwrapped;
   }
-  if (unwrapped.type !== 'Identifier') {
+  if (unwrapped.type !== "Identifier") {
     return null;
   }
   const variable = resolveVariable(sourceCode, unwrapped);
@@ -117,10 +117,10 @@ function localFunctionForCall(sourceCode, callee) {
   if (definition === undefined) {
     return null;
   }
-  if (definition.type === 'FunctionName' && isFunctionExpression(definition.node)) {
+  if (definition.type === "FunctionName" && isFunctionExpression(definition.node)) {
     return definition.node;
   }
-  if (definition.type !== 'Variable' || definition.node.type !== 'VariableDeclarator') {
+  if (definition.type !== "Variable" || definition.node.type !== "VariableDeclarator") {
     return null;
   }
   const initializer = definition.node.init;
@@ -140,13 +140,13 @@ function variableTypeAnnotation(sourceCode, variable) {
     return null;
   }
   if (
-    definition.type === 'Variable' &&
-    definition.node.type === 'VariableDeclarator' &&
-    definition.node.id.type === 'Identifier'
+    definition.type === "Variable" &&
+    definition.node.type === "VariableDeclarator" &&
+    definition.node.id.type === "Identifier"
   ) {
     return definition.node.id.typeAnnotation ?? null;
   }
-  if (definition.type !== 'Parameter' || !isFunctionExpression(definition.node)) {
+  if (definition.type !== "Parameter" || !isFunctionExpression(definition.node)) {
     return null;
   }
   const parameter = definition.node.params.find(
@@ -165,7 +165,7 @@ function hasKnownCallArgumentEvidence(
   environment,
   visitedVariables = new Set(),
 ) {
-  if (expression.type === 'ParenthesizedExpression' || expression.type === 'TSNonNullExpression') {
+  if (expression.type === "ParenthesizedExpression" || expression.type === "TSNonNullExpression") {
     return hasKnownCallArgumentEvidence(
       sourceCode,
       expression.expression,
@@ -173,10 +173,10 @@ function hasKnownCallArgumentEvidence(
       visitedVariables,
     );
   }
-  if (expression.type === 'TSAsExpression' || expression.type === 'TSTypeAssertion') {
+  if (expression.type === "TSAsExpression" || expression.type === "TSTypeAssertion") {
     return hasInformativeType(expression.typeAnnotation, environment);
   }
-  if (expression.type === 'TSSatisfiesExpression') {
+  if (expression.type === "TSSatisfiesExpression") {
     return hasKnownCallArgumentEvidence(
       sourceCode,
       expression.expression,
@@ -184,12 +184,12 @@ function hasKnownCallArgumentEvidence(
       visitedVariables,
     );
   }
-  if (expression.type === 'CallExpression') {
+  if (expression.type === "CallExpression") {
     const owner = localFunctionForCall(sourceCode, expression.callee);
     const returnType = owner?.returnType?.typeAnnotation;
     return returnType !== undefined && hasInformativeType(returnType, environment);
   }
-  if (expression.type !== 'Identifier') {
+  if (expression.type !== "Identifier") {
     return isKnownEvidenceExpression(expression);
   }
   const variable = resolveVariable(sourceCode, expression);
@@ -214,7 +214,7 @@ function hasKnownCallArgumentEvidence(
 
 function typePredicateSubjectIndex(sourceCode, owner) {
   const predicate = owner.returnType?.typeAnnotation;
-  if (predicate?.type !== 'TSTypePredicate' || predicate.parameterName.type !== 'Identifier') {
+  if (predicate?.type !== "TSTypePredicate" || predicate.parameterName.type !== "Identifier") {
     return null;
   }
   const predicateParameterName = predicate.parameterName.name;
@@ -232,11 +232,11 @@ function annotationTarget(annotation, environment) {
 
 function enclosingFunction(node) {
   let current = node.parent;
-  while (current !== null && current.type !== 'Program') {
+  while (current !== null && current.type !== "Program") {
     if (
-      current.type === 'ArrowFunctionExpression' ||
-      current.type === 'FunctionDeclaration' ||
-      current.type === 'FunctionExpression'
+      current.type === "ArrowFunctionExpression" ||
+      current.type === "FunctionDeclaration" ||
+      current.type === "FunctionExpression"
     ) {
       return current;
     }
@@ -246,10 +246,10 @@ function enclosingFunction(node) {
 }
 
 function sourceKeyName(sourceCode, key) {
-  if (key.type === 'Identifier' || key.type === 'PrivateIdentifier') {
+  if (key.type === "Identifier" || key.type === "PrivateIdentifier") {
     return key.name;
   }
-  if (key.type === 'Literal') {
+  if (key.type === "Literal") {
     return String(key.value);
   }
   return sourceCode.getText(key);
@@ -257,32 +257,32 @@ function sourceKeyName(sourceCode, key) {
 
 function functionName(sourceCode, owner) {
   if (owner === null) {
-    return 'anonymous function';
+    return "anonymous function";
   }
   if (owner.id !== null) {
     return owner.id.name;
   }
   const parent = owner.parent;
-  if (parent.type === 'VariableDeclarator' && parent.id.type === 'Identifier') {
+  if (parent.type === "VariableDeclarator" && parent.id.type === "Identifier") {
     return parent.id.name;
   }
-  if (parent.type === 'MethodDefinition') {
+  if (parent.type === "MethodDefinition") {
     return sourceKeyName(sourceCode, parent.key);
   }
-  return 'anonymous function';
+  return "anonymous function";
 }
 
 function isEmptyObjectExpression(expression) {
   const unwrapped = unwrapExpression(expression);
-  return unwrapped.type === 'ObjectExpression' && unwrapped.properties.length === 0;
+  return unwrapped.type === "ObjectExpression" && unwrapped.properties.length === 0;
 }
 
 function isDictionaryAccumulatorTarget(destination) {
-  return destination.kind === 'open dictionary' || destination.kind === 'generic container';
+  return destination.kind === "open dictionary" || destination.kind === "generic container";
 }
 
 function hasParentAssertion(node) {
-  return node.parent?.type === 'TSAsExpression' || node.parent?.type === 'TSTypeAssertion';
+  return node.parent?.type === "TSAsExpression" || node.parent?.type === "TSTypeAssertion";
 }
 
 /** Detect sound syntactic cases where a known value is explicitly widened and loses evidence. */
@@ -302,7 +302,7 @@ export const noKnownValueWideningRule = {
       }
       context.report({
         data: { subject, target: destination.kind },
-        messageId: 'widening',
+        messageId: "widening",
         node: expression,
       });
     };
@@ -316,7 +316,7 @@ export const noKnownValueWideningRule = {
         return;
       }
       const declarator = variableDeclarator(variable);
-      if (declarator === null || declarator.id.type !== 'Identifier') {
+      if (declarator === null || declarator.id.type !== "Identifier") {
         return;
       }
       reportFlow(
@@ -328,7 +328,7 @@ export const noKnownValueWideningRule = {
 
     const checkPredicateCall = (node, environment) => {
       const callee = unwrapExpression(node.callee);
-      if (callee.type === 'Identifier' && !predicateNames.has(callee.name)) {
+      if (callee.type === "Identifier" && !predicateNames.has(callee.name)) {
         return;
       }
       const owner = localFunctionForCall(context.sourceCode, node.callee);
@@ -341,7 +341,7 @@ export const noKnownValueWideningRule = {
       }
       const parameter = owner.params[parameterIndex];
       const argument = node.arguments[parameterIndex];
-      if (parameter === undefined || argument === undefined || argument.type === 'SpreadElement') {
+      if (parameter === undefined || argument === undefined || argument.type === "SpreadElement") {
         return;
       }
       const parameterAnnotation = functionParameterTypeAnnotation(parameter);
@@ -358,9 +358,9 @@ export const noKnownValueWideningRule = {
       context.report({
         data: {
           subject: `argument for parameter \`${functionParameterBindingName(parameter, context.sourceCode)}\` of \`${functionName(context.sourceCode, owner)}\``,
-          target: 'unknown',
+          target: "unknown",
         },
-        messageId: 'widening',
+        messageId: "widening",
         node: argument,
       });
     };
@@ -373,10 +373,10 @@ export const noKnownValueWideningRule = {
       );
     };
     const checkReturn = (node, environment) => {
-      const owner = node.type === 'ArrowFunctionExpression' ? node : enclosingFunction(node);
+      const owner = node.type === "ArrowFunctionExpression" ? node : enclosingFunction(node);
       if (owner?.returnType) {
         reportFlow(
-          node.type === 'ArrowFunctionExpression' ? node.body : node.argument,
+          node.type === "ArrowFunctionExpression" ? node.body : node.argument,
           annotationTarget(owner.returnType, environment),
           `return value of \`${functionName(context.sourceCode, owner)}\``,
         );
@@ -386,7 +386,7 @@ export const noKnownValueWideningRule = {
       reportFlow(
         node.expression,
         classifyWideningTarget(node.typeAnnotation, environment),
-        'assertion',
+        "assertion",
       );
     };
     const checkVariable = (node, environment) => {
@@ -411,18 +411,18 @@ export const noKnownValueWideningRule = {
       return {
         AccessorProperty: property,
         ArrowFunctionExpression(node) {
-          if (node.returnType && node.body.type !== 'BlockStatement') {
+          if (node.returnType && node.body.type !== "BlockStatement") {
             defer(checkReturn, node);
           }
         },
         AssignmentExpression(node) {
-          if (node.operator === '=' && node.left.type === 'Identifier') {
+          if (node.operator === "=" && node.left.type === "Identifier") {
             defer(checkAssignment, node);
           }
         },
         CallExpression(node) {
           const callee = unwrapExpression(node.callee);
-          if (callee.type === 'Identifier' || isFunctionExpression(callee)) {
+          if (callee.type === "Identifier" || isFunctionExpression(callee)) {
             defer(checkPredicateCall, node);
           }
         },
@@ -451,8 +451,8 @@ export const noKnownValueWideningRule = {
             initializer = initializer.parent;
           }
           const declaration = initializer.parent;
-          if (declaration.type === 'VariableDeclarator' && declaration.init === initializer) {
-            if (declaration.id.type === 'Identifier') {
+          if (declaration.type === "VariableDeclarator" && declaration.init === initializer) {
+            if (declaration.id.type === "Identifier") {
               predicateNames.add(declaration.id.name);
             } else {
               for (const variable of context.sourceCode.getDeclaredVariables(declaration)) {
@@ -462,7 +462,7 @@ export const noKnownValueWideningRule = {
           }
         },
         VariableDeclarator(node) {
-          if (node.id.type === 'Identifier' && node.id.typeAnnotation) {
+          if (node.id.type === "Identifier" && node.id.typeAnnotation) {
             annotatedBindings.add(node.id.name);
             if (node.init) {
               defer(checkVariable, node);
@@ -475,12 +475,12 @@ export const noKnownValueWideningRule = {
   meta: {
     docs: {
       description:
-        'Disallow syntactically established values from flowing into explicitly broad or anonymous target types that discard useful evidence.',
+        "Disallow syntactically established values from flowing into explicitly broad or anonymous target types that discard useful evidence.",
     },
     messages: {
       widening:
-        'The explicit {{target}} type on {{subject}} discards known type evidence. Keep inference, validate with `satisfies`, or use a named owner contract.',
+        "The explicit {{target}} type on {{subject}} discards known type evidence. Keep inference, validate with `satisfies`, or use a named owner contract.",
     },
-    type: 'problem',
+    type: "problem",
   },
 };

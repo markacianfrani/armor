@@ -26,7 +26,7 @@ import {
   arrayMethodTarget,
   isKnownArrayExpression,
   unwrapArrayExpression,
-} from '../shared/array-method.mjs';
+} from "../shared/array-method.mjs";
 
 /** Reject eager array filter/map pipelines; lazy iterator helpers remain allowed. */
 export const noArrayFilterMapRule = {
@@ -34,15 +34,15 @@ export const noArrayFilterMapRule = {
     return {
       CallExpression(node) {
         const outer = arrayMethodTarget(node.callee);
-        if (outer === null || (outer.name !== 'map' && outer.name !== 'filter')) {
+        if (outer === null || (outer.name !== "map" && outer.name !== "filter")) {
           return;
         }
         const innerCall = unwrapArrayExpression(outer.object);
-        if (innerCall.type !== 'CallExpression') {
+        if (innerCall.type !== "CallExpression") {
           return;
         }
         const inner = arrayMethodTarget(innerCall.callee);
-        if (inner === null || inner.name !== (outer.name === 'map' ? 'filter' : 'map')) {
+        if (inner === null || inner.name !== (outer.name === "map" ? "filter" : "map")) {
           return;
         }
         if (!isKnownArrayExpression(context.sourceCode, inner.object)) {
@@ -50,7 +50,7 @@ export const noArrayFilterMapRule = {
         }
         context.report({
           data: { first: inner.name, second: outer.name },
-          messageId: 'arrayFilterMap',
+          messageId: "arrayFilterMap",
           node,
         });
       },
@@ -59,12 +59,12 @@ export const noArrayFilterMapRule = {
   meta: {
     docs: {
       description:
-        'Disallow adjacent array filter/map passes in favor of lazy iterator helpers or a single transformation.',
+        "Disallow adjacent array filter/map passes in favor of lazy iterator helpers or a single transformation.",
     },
     messages: {
       arrayFilterMap:
-        'Avoid consecutive array `{{first}}` and `{{second}}` passes. Prefer `.values().{{first}}(...).{{second}}(...).toArray()` where iterator helpers are supported, or a single `flatMap`/mutating reducer. Preserve callback ordering, indexes, and filtering semantics.',
+        "Avoid consecutive array `{{first}}` and `{{second}}` passes. Prefer `.values().{{first}}(...).{{second}}(...).toArray()` where iterator helpers are supported, or a single `flatMap`/mutating reducer. Preserve callback ordering, indexes, and filtering semantics.",
     },
-    type: 'suggestion',
+    type: "suggestion",
   },
 };

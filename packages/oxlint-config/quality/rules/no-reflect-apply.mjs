@@ -20,18 +20,18 @@
  * handlers[event.type](event);
  */
 
-import { isGlobalReflectMethodCall } from '../shared/reflect-method.mjs';
+import { isGlobalReflectMethodCall } from "../shared/reflect-method.mjs";
 
 /** Ban Reflect.apply, which bypasses ordinary typed function calls. */
 export const noReflectApplyRule = {
   createOnce(context) {
     return {
       CallExpression(node) {
-        if (node.callee.type === 'Super' || node.callee.type === 'V8IntrinsicExpression') {
+        if (node.callee.type === "Super" || node.callee.type === "V8IntrinsicExpression") {
           return;
         }
-        if (isGlobalReflectMethodCall(context.sourceCode, node.callee, 'apply')) {
-          context.report({ messageId: 'reflectApply', node });
+        if (isGlobalReflectMethodCall(context.sourceCode, node.callee, "apply")) {
+          context.report({ messageId: "reflectApply", node });
         }
       },
     };
@@ -39,12 +39,12 @@ export const noReflectApplyRule = {
   meta: {
     docs: {
       description:
-        'Disallow Reflect.apply; call typed functions directly or model dynamic dispatch behind an interface.',
+        "Disallow Reflect.apply; call typed functions directly or model dynamic dispatch behind an interface.",
     },
     messages: {
       reflectApply:
-        'Replace `Reflect.apply` with a typed function call. Model dynamic dispatch behind a named interface.',
+        "Replace `Reflect.apply` with a typed function call. Model dynamic dispatch behind a named interface.",
     },
-    type: 'problem',
+    type: "problem",
   },
 };

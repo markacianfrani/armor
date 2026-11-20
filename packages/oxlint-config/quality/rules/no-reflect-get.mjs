@@ -19,18 +19,18 @@
  * const token: string | undefined = headers[headerName];
  */
 
-import { isGlobalReflectMethodCall } from '../shared/reflect-method.mjs';
+import { isGlobalReflectMethodCall } from "../shared/reflect-method.mjs";
 
 /** Ban Reflect.get, which bypasses ordinary property access and useful type evidence. */
 export const noReflectGetRule = {
   createOnce(context) {
     return {
       CallExpression(node) {
-        if (node.callee.type === 'Super' || node.callee.type === 'V8IntrinsicExpression') {
+        if (node.callee.type === "Super" || node.callee.type === "V8IntrinsicExpression") {
           return;
         }
-        if (isGlobalReflectMethodCall(context.sourceCode, node.callee, 'get')) {
-          context.report({ messageId: 'reflectGet', node });
+        if (isGlobalReflectMethodCall(context.sourceCode, node.callee, "get")) {
+          context.report({ messageId: "reflectGet", node });
         }
       },
     };
@@ -38,12 +38,12 @@ export const noReflectGetRule = {
   meta: {
     docs: {
       description:
-        'Disallow Reflect.get; use typed property access or parse dynamic input into a domain type.',
+        "Disallow Reflect.get; use typed property access or parse dynamic input into a domain type.",
     },
     messages: {
       reflectGet:
-        'Replace `Reflect.get` with typed property access. Parse dynamic input into a named domain type before reading it.',
+        "Replace `Reflect.get` with typed property access. Parse dynamic input into a named domain type before reading it.",
     },
-    type: 'problem',
+    type: "problem",
   },
 };

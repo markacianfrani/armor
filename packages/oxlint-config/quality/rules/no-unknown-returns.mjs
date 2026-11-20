@@ -20,23 +20,23 @@
  * function readConfig(): Config { ... }
  */
 
-import { withTypeBindings, resolvedTypeMatches } from '../shared/type-alias-resolution.mjs';
+import { withTypeBindings, resolvedTypeMatches } from "../shared/type-alias-resolution.mjs";
 
 const resolvesToUnknown = (type, environment) =>
   resolvedTypeMatches(type, environment, (resolved, matches) => {
-    if (resolved.type === 'TSUnknownKeyword') {
+    if (resolved.type === "TSUnknownKeyword") {
       return true;
     }
-    if (resolved.type === 'TSParenthesizedType') {
+    if (resolved.type === "TSParenthesizedType") {
       return matches(resolved.typeAnnotation);
     }
-    if (resolved.type === 'TSUnionType') {
+    if (resolved.type === "TSUnionType") {
       return resolved.types.some(matches);
     }
     if (
-      resolved.type !== 'TSTypeReference' ||
-      resolved.typeName.type !== 'Identifier' ||
-      (resolved.typeName.name !== 'Promise' && resolved.typeName.name !== 'PromiseLike')
+      resolved.type !== "TSTypeReference" ||
+      resolved.typeName.type !== "Identifier" ||
+      (resolved.typeName.name !== "Promise" && resolved.typeName.name !== "PromiseLike")
     ) {
       return false;
     }
@@ -49,7 +49,7 @@ export const noUnknownReturnsRule = {
   createOnce(context) {
     const check = (type, environment) => {
       if (resolvesToUnknown(type, environment)) {
-        context.report({ messageId: 'unknownReturn', node: type });
+        context.report({ messageId: "unknownReturn", node: type });
       }
     };
     return withTypeBindings(context, (defer) => {
@@ -75,12 +75,12 @@ export const noUnknownReturnsRule = {
   meta: {
     docs: {
       description:
-        'Disallow functions whose explicit return contract is unknown or Promise<unknown>.',
+        "Disallow functions whose explicit return contract is unknown or Promise<unknown>.",
     },
     messages: {
       unknownReturn:
-        'This function exposes `unknown` to its caller. Parse the value at its boundary and return a named domain type.',
+        "This function exposes `unknown` to its caller. Parse the value at its boundary and return a named domain type.",
     },
-    type: 'problem',
+    type: "problem",
   },
 };

@@ -1,23 +1,23 @@
 /** Return whether a type is or contains TypeScript's absorbing unknown top type. */
 export function containsUnknownType(type) {
-  if (type.type === 'TSUnknownKeyword') {
+  if (type.type === "TSUnknownKeyword") {
     return true;
   }
-  if (type.type === 'TSParenthesizedType') {
+  if (type.type === "TSParenthesizedType") {
     return containsUnknownType(type.typeAnnotation);
   }
-  return type.type === 'TSUnionType' && type.types.some(containsUnknownType);
+  return type.type === "TSUnionType" && type.types.some(containsUnknownType);
 }
 
 /** Return the TypeScript annotation attached to a function parameter or its wrapped binding. */
 export function functionParameterTypeAnnotation(parameter) {
-  if (parameter.type === 'TSParameterProperty') {
+  if (parameter.type === "TSParameterProperty") {
     return functionParameterTypeAnnotation(parameter.parameter);
   }
-  if (parameter.type === 'RestElement') {
+  if (parameter.type === "RestElement") {
     return parameter.typeAnnotation ?? functionParameterTypeAnnotation(parameter.argument);
   }
-  if (parameter.type === 'AssignmentPattern') {
+  if (parameter.type === "AssignmentPattern") {
     return parameter.typeAnnotation ?? functionParameterTypeAnnotation(parameter.left);
   }
   return parameter.typeAnnotation;
@@ -25,16 +25,16 @@ export function functionParameterTypeAnnotation(parameter) {
 
 /** Return only a function parameter's local binding, excluding its annotation and default value. */
 export function functionParameterBindingName(parameter, sourceCode) {
-  if (parameter.type === 'TSParameterProperty') {
+  if (parameter.type === "TSParameterProperty") {
     return functionParameterBindingName(parameter.parameter, sourceCode);
   }
-  if (parameter.type === 'AssignmentPattern') {
+  if (parameter.type === "AssignmentPattern") {
     return functionParameterBindingName(parameter.left, sourceCode);
   }
-  if (parameter.type === 'RestElement') {
+  if (parameter.type === "RestElement") {
     return functionParameterBindingName(parameter.argument, sourceCode);
   }
-  if (parameter.type === 'Identifier') {
+  if (parameter.type === "Identifier") {
     return parameter.name;
   }
 

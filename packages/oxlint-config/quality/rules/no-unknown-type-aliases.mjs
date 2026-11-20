@@ -20,17 +20,17 @@
  * function recv(): Payload { ... }
  */
 
-import { withTypeBindings, resolvedTypeMatches } from '../shared/type-alias-resolution.mjs';
+import { withTypeBindings, resolvedTypeMatches } from "../shared/type-alias-resolution.mjs";
 
 const resolvesToUnknown = (type, environment) =>
   resolvedTypeMatches(type, environment, (resolved, matches) => {
-    if (resolved.type === 'TSUnknownKeyword') {
+    if (resolved.type === "TSUnknownKeyword") {
       return true;
     }
-    if (resolved.type === 'TSParenthesizedType') {
+    if (resolved.type === "TSParenthesizedType") {
       return matches(resolved.typeAnnotation);
     }
-    return resolved.type === 'TSUnionType' && resolved.types.some(matches);
+    return resolved.type === "TSUnionType" && resolved.types.some(matches);
   });
 
 /** Ban named aliases that merely conceal TypeScript's unknown top type. */
@@ -42,7 +42,7 @@ export const noUnknownTypeAliasesRule = {
       }
       context.report({
         data: { alias: node.id.name },
-        messageId: 'unknownAlias',
+        messageId: "unknownAlias",
         node: node.id,
       });
     };
@@ -55,12 +55,12 @@ export const noUnknownTypeAliasesRule = {
   meta: {
     docs: {
       description:
-        'Disallow type aliases whose resolved type is unknown; unknown must remain visible at an allowed boundary.',
+        "Disallow type aliases whose resolved type is unknown; unknown must remain visible at an allowed boundary.",
     },
     messages: {
       unknownAlias:
-        'Type alias `{{alias}}` hides `unknown`. Keep `unknown` explicit at the parsing boundary or on an allowed `cause` field; otherwise use the parsed owner type.',
+        "Type alias `{{alias}}` hides `unknown`. Keep `unknown` explicit at the parsing boundary or on an allowed `cause` field; otherwise use the parsed owner type.",
     },
-    type: 'problem',
+    type: "problem",
   },
 };

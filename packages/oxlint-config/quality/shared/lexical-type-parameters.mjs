@@ -1,11 +1,11 @@
 function isNode(value) {
   return (
-    typeof value === 'object' && value !== null && 'type' in value && typeof value.type === 'string'
+    typeof value === "object" && value !== null && "type" in value && typeof value.type === "string"
   );
 }
 
 function hasInferTypeParameter(node, name, visitorKeys) {
-  if (node.type === 'TSInferType' && node.typeParameter.name.name === name) {
+  if (node.type === "TSInferType" && node.typeParameter.name.name === name) {
     return true;
   }
   for (const key of visitorKeys[node.type] ?? []) {
@@ -27,10 +27,10 @@ function hasInferTypeParameter(node, name, visitorKeys) {
 export function bindsTypeParameter(node, child, name, visitorKeys) {
   return (
     node.typeParameters?.params.some((parameter) => parameter.name.name === name) ||
-    (node.type === 'TSMappedType' &&
+    (node.type === "TSMappedType" &&
       (child === node.nameType || child === node.typeAnnotation) &&
       node.key.name === name) ||
-    (node.type === 'TSConditionalType' &&
+    (node.type === "TSConditionalType" &&
       child === node.trueType &&
       hasInferTypeParameter(node.extendsType, name, visitorKeys))
   );

@@ -1,4 +1,4 @@
-import { bindsTypeParameter } from './lexical-type-parameters.mjs';
+import { bindsTypeParameter } from "./lexical-type-parameters.mjs";
 
 const environmentsByProgram = new WeakMap();
 
@@ -6,11 +6,11 @@ function enclosingTypeScope(node) {
   let current = node.parent;
   while (current !== null) {
     if (
-      current.type === 'Program' ||
-      current.type === 'BlockStatement' ||
-      current.type === 'TSModuleBlock' ||
-      current.type === 'StaticBlock' ||
-      current.type === 'SwitchStatement'
+      current.type === "Program" ||
+      current.type === "BlockStatement" ||
+      current.type === "TSModuleBlock" ||
+      current.type === "StaticBlock" ||
+      current.type === "SwitchStatement"
     ) {
       return current;
     }
@@ -20,14 +20,14 @@ function enclosingTypeScope(node) {
 }
 
 const bindingTypes = [
-  'ClassDeclaration',
-  'ClassExpression',
-  'ImportDefaultSpecifier',
-  'ImportNamespaceSpecifier',
-  'ImportSpecifier',
-  'TSEnumDeclaration',
-  'TSInterfaceDeclaration',
-  'TSTypeAliasDeclaration',
+  "ClassDeclaration",
+  "ClassExpression",
+  "ImportDefaultSpecifier",
+  "ImportNamespaceSpecifier",
+  "ImportSpecifier",
+  "TSEnumDeclaration",
+  "TSInterfaceDeclaration",
+  "TSTypeAliasDeclaration",
 ];
 
 function recordBinding(node, environment) {
@@ -77,7 +77,7 @@ export function withTypeBindings(context, createVisitors) {
     }
     start?.();
   };
-  visitors['Program:exit'] = () => {
+  visitors["Program:exit"] = () => {
     for (let i = 0; i < checks.length; i += 2) {
       checks[i](checks[i + 1], environment);
     }
@@ -108,11 +108,11 @@ export function visibleTypeAlias(name, use, environment) {
     return null;
   }
   const declaration = visibleTypeBinding(name, use, environment);
-  return declaration?.type === 'TSTypeAliasDeclaration' ? declaration : null;
+  return declaration?.type === "TSTypeAliasDeclaration" ? declaration : null;
 }
 
 function typeReferenceName(type) {
-  return type.typeName.type === 'Identifier' ? type.typeName.name : null;
+  return type.typeName.type === "Identifier" ? type.typeName.name : null;
 }
 
 function aliasSubstitutions(alias, reference, base) {
@@ -137,7 +137,7 @@ function aliasSubstitutions(alias, reference, base) {
 /** Match a type after resolving visible aliases and substituting their type parameters. */
 export function resolvedTypeMatches(type, environment, matcher) {
   const evaluate = (current, substitutions, resolvingAliases) => {
-    if (current.type === 'TSTypeReference') {
+    if (current.type === "TSTypeReference") {
       const name = typeReferenceName(current);
       if (name !== null) {
         const substitution = substitutions.get(name);

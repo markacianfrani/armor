@@ -27,30 +27,30 @@ import {
   isKnownArrayExpression,
   resolveArrayBinding,
   unwrapArrayExpression,
-} from '../shared/array-method.mjs';
+} from "../shared/array-method.mjs";
 
-const arrayCopies = new Set(['concat', 'slice', 'toSpliced', 'toSorted', 'toReversed', 'with']);
+const arrayCopies = new Set(["concat", "slice", "toSpliced", "toSorted", "toReversed", "with"]);
 
 function enclosingReducer(node) {
   let parent = node.parent;
   while (parent !== null) {
-    if (parent.type === 'FunctionDeclaration') {
+    if (parent.type === "FunctionDeclaration") {
       return null;
     }
-    if (parent.type === 'ArrowFunctionExpression' || parent.type === 'FunctionExpression') {
+    if (parent.type === "ArrowFunctionExpression" || parent.type === "FunctionExpression") {
       const callback = parent;
       let owner = callback.parent;
       while (owner !== null && unwrapArrayExpression(owner) === callback) {
         owner = owner.parent;
       }
-      if (owner?.type !== 'CallExpression') {
+      if (owner?.type !== "CallExpression") {
         return null;
       }
       const method = arrayMethodTarget(owner.callee);
       const firstArgument = owner.arguments[0];
       if (
         method === null ||
-        (method.name !== 'reduce' && method.name !== 'reduceRight') ||
+        (method.name !== "reduce" && method.name !== "reduceRight") ||
         owner.arguments.length > 2 ||
         firstArgument === undefined ||
         unwrapArrayExpression(firstArgument) !== callback
@@ -59,8 +59,8 @@ function enclosingReducer(node) {
       }
       const firstParameter = callback.params[0];
       const accumulator =
-        firstParameter?.type === 'AssignmentPattern' ? firstParameter.left : firstParameter;
-      if (accumulator?.type !== 'Identifier') {
+        firstParameter?.type === "AssignmentPattern" ? firstParameter.left : firstParameter;
+      if (accumulator?.type !== "Identifier") {
         return null;
       }
       return { accumulator, callback, initialValue: owner.arguments[1] };
@@ -84,12 +84,12 @@ function referencesAccumulator(sourceCode, node, accumulator, visited = new Set(
   }
   for (const definition of variable.defs) {
     if (
-      definition.type === 'Variable' &&
-      definition.node.type === 'VariableDeclarator' &&
-      definition.node.id.type === 'Identifier' &&
+      definition.type === "Variable" &&
+      definition.node.type === "VariableDeclarator" &&
+      definition.node.id.type === "Identifier" &&
       definition.node.init !== null &&
-      definition.node.parent.type === 'VariableDeclaration' &&
-      definition.node.parent.kind === 'const'
+      definition.node.parent.type === "VariableDeclaration" &&
+      definition.node.parent.kind === "const"
     ) {
       return referencesAccumulator(sourceCode, definition.node.init, accumulator, visited);
     }
@@ -99,7 +99,7 @@ function referencesAccumulator(sourceCode, node, accumulator, visited = new Set(
 
 function isGlobalCopyOwner(sourceCode, node, name) {
   node = unwrapArrayExpression(node);
-  if (node.type !== 'Identifier' || node.name !== name) {
+  if (node.type !== "Identifier" || node.name !== name) {
     return false;
   }
   const variable = resolveArrayBinding(sourceCode, node);
@@ -114,7 +114,7 @@ export const noReduceAccumulatorCopyRule = {
         const method = arrayMethodTarget(node.callee);
         if (
           !method ||
-          (method.name !== 'assign' && method.name !== 'from' && !arrayCopies.has(method.name))
+          (method.name !== "assign" && method.name !== "from" && !arrayCopies.has(method.name))
         ) {
           return;
         }
@@ -136,17 +136,17 @@ export const noReduceAccumulatorCopyRule = {
           referencesAccumulator(context.sourceCode, expression, accumulator);
         let copiesAccumulator = false;
         if (
-          method.name === 'assign' &&
-          isGlobalCopyOwner(context.sourceCode, method.object, 'Object')
+          method.name === "assign" &&
+          isGlobalCopyOwner(context.sourceCode, method.object, "Object")
         ) {
           const target = node.arguments[0];
           copiesAccumulator =
             target !== undefined &&
-            unwrapArrayExpression(target).type === 'ObjectExpression' &&
+            unwrapArrayExpression(target).type === "ObjectExpression" &&
             node.arguments.slice(1).some(isAccumulator);
         } else if (
-          method.name === 'from' &&
-          isGlobalCopyOwner(context.sourceCode, method.object, 'Array')
+          method.name === "from" &&
+          isGlobalCopyOwner(context.sourceCode, method.object, "Array")
         ) {
           const source = node.arguments[0];
           copiesAccumulator = source !== undefined && isAccumulator(source);
@@ -157,7 +157,7 @@ export const noReduceAccumulatorCopyRule = {
           copiesAccumulator = arrayAccumulator && isAccumulator(method.object);
         }
         if (copiesAccumulator) {
-          context.report({ messageId: 'accumulatorCopy', node });
+          context.report({ messageId: "accumulatorCopy", node });
         }
       },
     };
@@ -165,12 +165,12 @@ export const noReduceAccumulatorCopyRule = {
   meta: {
     docs: {
       description:
-        'Disallow copying growing reducer accumulators with Object.assign, Array.from, or array copy methods.',
+        "Disallow copying growing reducer accumulators with Object.assign, Array.from, or array copy methods.",
     },
     messages: {
       accumulatorCopy:
-        'Do not copy the reducer accumulator on every iteration; growing copies can cause quadratic work. Mutate a fresh, locally owned accumulator and return it, or use an iterator pipeline/flatMap.',
+        "Do not copy the reducer accumulator on every iteration; growing copies can cause quadratic work. Mutate a fresh, locally owned accumulator and return it, or use an iterator pipeline/flatMap.",
     },
-    type: 'problem',
+    type: "problem",
   },
 };
