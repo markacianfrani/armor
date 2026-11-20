@@ -1,3 +1,25 @@
+/**
+ * @file `no-object-parameters` — disallow the `object` function parameter type.
+ *
+ * Fires on parameters annotated `object` — directly, through local aliases, or
+ * as a union member — across all function-shaped nodes (declarations,
+ * expressions, signatures, method and constructor types).
+ *
+ * `object` accepts nearly everything except primitives and exposes none of it:
+ * no members, no contract, nothing a caller can rely on. Inside the function it
+ * forces casts; at the call site it documents nothing. Accept a named owner type
+ * so the parameter is a real contract, and parse external input into that type
+ * at the system boundary — before it reaches this function — so its shape is
+ * already verified on arrival.
+ *
+ * @example
+ * // Before — accepts anything, promises nothing:
+ * function merge(base: object, patch: object) { ... }
+ *
+ * // After — a named contract callers can check against:
+ * function merge(base: Config, patch: Partial<Config>): Config { ... }
+ */
+
 import {
   functionParameterBindingName,
   functionParameterTypeAnnotation,

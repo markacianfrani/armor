@@ -1,3 +1,28 @@
+/**
+ * @file `no-widen-then-assert` — disallow widen-then-assert const flows.
+ *
+ * Fires on immutable local bindings that discard type evidence at
+ * initialization — an explicit broad annotation on a known value — and later
+ * re-create it with an assertion back to a narrower type.
+ *
+ * The cast at the end is only "necessary" because the binding erased what the
+ * initializer already proved. Discard-then-recover is how wrong data survives
+ * review: the initializer's guarantee is gone, and the final assertion
+ * re-imposes a shape with zero verification in between. Keep the precise type
+ * from initialization through use; when a value truly is untrusted, parse it
+ * once at its boundary instead of laundering it through a local.
+ *
+ * @example
+ * // Before — erase the evidence, then trust-me it back:
+ * const value = { name: 'ok' };
+ * const raw: unknown = value;
+ * export const cast = raw as string;
+ *
+ * // After — the initializer's type flows through, no cast needed:
+ * const value = { name: 'ok' };
+ * export const cast = value; // or parse once at the boundary if untrusted
+ */
+
 const functionBoundaryTypes = new Set([
   'ArrowFunctionExpression',
   'FunctionDeclaration',

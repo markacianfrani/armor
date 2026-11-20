@@ -1,3 +1,25 @@
+/**
+ * @file `no-unknown-returns` — disallow `unknown` function return contracts.
+ *
+ * Fires on explicit return types that resolve to `unknown` — directly, through
+ * unions, parentheses, and type aliases, or as `Promise<unknown>` /
+ * `PromiseLike<unknown>` — across all function-shaped nodes.
+ *
+ * `unknown` on a *parameter* says "I will verify this"; that is its job at the
+ * parsing boundary. On a *return type* it inverts the contract: every caller
+ * inherits the verification work, so the same payload gets parsed and asserted
+ * over and over — and each site can assert it differently. Parse the value once
+ * where it enters, and return a named domain type so callers get a checked
+ * contract instead of homework.
+ *
+ * @example
+ * // Before — every caller must re-verify:
+ * function readConfig(): unknown { ... }
+ *
+ * // After — verified once, at the boundary:
+ * function readConfig(): Config { ... }
+ */
+
 import { withTypeBindings, resolvedTypeMatches } from '../shared/type-alias-resolution.mjs';
 
 const resolvesToUnknown = (type, environment) =>

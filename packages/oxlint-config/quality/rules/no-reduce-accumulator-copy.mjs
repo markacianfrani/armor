@@ -1,3 +1,27 @@
+/**
+ * @file `no-reduce-accumulator-copy` — disallow copying the accumulator on every reducer iteration.
+ *
+ * Fires when a `reduce`/`reduceRight` callback copies its accumulator each
+ * iteration: `acc.concat(...)`, the array copy methods (`slice`, `toSpliced`,
+ * `toSorted`, `toReversed`, `with`), `Object.assign({}, acc)`, `Array.from(acc)`.
+ *
+ * Growing an accumulator by copying is quadratic — every iteration
+ * re-allocates everything seen so far. A reducer is safe to mutate an
+ * accumulator it locally owns: nobody else holds a reference, so push into a
+ * fresh accumulator and return it. Better yet, skip the reducer — `flatMap`
+ * and iterator pipelines express most "reduce by building a list" jobs in one
+ * pass without the trap.
+ *
+ * @example
+ * // Before — O(n^2), a fresh array every iteration:
+ * const evens = xs.reduce((acc, x) => (x % 2 === 0 ? acc.concat(x) : acc), []);
+ *
+ * // After — O(n), mutate the locally owned accumulator:
+ * const evens = xs.reduce((acc, x) => { if (x % 2 === 0) acc.push(x); return acc; }, []);
+ * // or express the filter directly:
+ * const evens = xs.filter((x) => x % 2 === 0);
+ */
+
 import {
   arrayMethodTarget,
   isKnownArrayExpression,

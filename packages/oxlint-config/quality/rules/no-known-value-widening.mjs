@@ -1,3 +1,27 @@
+/**
+ * @file `no-known-value-widening` — disallow erasing established types with explicit annotations.
+ *
+ * Fires when a value whose type the compiler can already see — an object or
+ * array literal, a call with a known return type — gets an explicit annotation
+ * that discards that evidence: a broad type (`unknown`, `any`, `object`) or an
+ * anonymous inline object type.
+ *
+ * The annotation adds nothing and removes information. Every downstream use now
+ * needs casts or checks to recover what was known at initialization — usually
+ * via the widen-then-assert pattern this plugin also bans. Keep inference,
+ * validate a shape with `satisfies`, or name the contract with a type so the
+ * intent is explicit without erasing evidence.
+ *
+ * @example
+ * // Before — the annotations throw away what the initializer proves:
+ * const config: unknown = { retries: 3 };
+ * const typed: { retries: number } = { retries: 3 };
+ *
+ * // After — keep inference, or validate a named contract:
+ * const config = { retries: 3 };
+ * const typed = { retries: 3 } satisfies Config;
+ */
+
 import {
   classifyUnsafeDictionaryValue,
   classifyWideningTarget,

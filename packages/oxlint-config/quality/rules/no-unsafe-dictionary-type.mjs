@@ -1,3 +1,24 @@
+/**
+ * @file `no-unsafe-dictionary-type` — disallow dictionary value types with no contract.
+ *
+ * Fires on object-dictionary contracts — `Record<K, V>`, index signatures,
+ * mapped types — whose direct value type is `unknown`, `any`, `object`, or
+ * `{}`, including unions and aliases that resolve to one of those.
+ *
+ * A dictionary is already the loosest useful shape; if its *values* are also
+ * escape hatches, callers get nothing: every read needs a cast and the compiler
+ * verifies none of them. Name the value type — a domain type, or a
+ * schema-derived one for wire data — and parse external payloads into it
+ * before they enter the dictionary.
+ *
+ * @example
+ * // Before — reads from this need blind casts:
+ * const cache: Record<string, unknown> = {};
+ *
+ * // After — the value type is the contract:
+ * const cache: Record<string, Session> = {};
+ */
+
 import {
   classifyUnsafeDictionary,
   classifyUnsafeDictionaryValue,
