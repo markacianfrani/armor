@@ -28,11 +28,44 @@ Your project's `.oxlintrc.json` becomes a thin stub that extends the package:
 
 `base.json` carries the full posture: error-only categories (`correctness`, `suspicious`, `pedantic`, `style`, `perf`), the deliberate `"off"` list, complexity guardrails, test-file overrides, and the 12 quality rules below via `jsPlugins`. Your stub only overrides what your project disagrees with.
 
+## Disabling rules
+
+Three levels — pick the smallest scope that fixes the problem:
+
+**Per project** — add to your stub's `rules` (an explicit `"off"` beats anything in `base.json`):
+
+```jsonc
+"rules": {
+  "quality/no-reflect-get": "off"
+}
+```
+
+**Per file:**
+
+```ts
+/* oxlint-disable quality/no-reflect-get */
+```
+
+**Per line:**
+
+```ts
+// oxlint-disable-next-line quality/no-reflect-get
+```
+
+Quality rules use the `quality/` prefix in both config and comments. `base.json` sets `reportUnusedDisableDirectives: "error"`, so a disable left behind after the code is fixed becomes an error itself — suppressions don't rot silently. All three forms verified against oxlint 1.94.
+
 Updates flow through your package manager — bump the dependency, don't re-vendor.
 
 ## The quality plugin (`quality/`)
 
-Plain-AST rules — they run under the default syntactic `oxlint` pass, no type-aware backend. They gate the "slop" patterns LLMs and rushed humans produce:
+Plain-AST rules — they run under the default syntactic `oxlint` pass, no type-aware backend. All 12, by theme (each with a `@file` block in `quality/rules/` covering what, why, and a before/after):
+
+- **The `unknown` containment wall** — `no-unknown-returns` · `no-unknown-type-aliases` · `no-object-parameters` · `no-unsafe-dictionary-type` · `no-known-value-widening`
+- **Assertion abuse** — `no-chained-type-assertions` · `no-widen-then-assert`
+- **Dynamic dispatch with no type evidence** — `no-reflect-get` · `no-reflect-apply`
+- **Perf & explicit construction** — `no-array-filter-map` · `no-reduce-accumulator-copy` · `no-conditional-empty-object-spread`
+
+Details:
 
 | Rule                                 | Catches                                                                                                        |
 | ------------------------------------ | -------------------------------------------------------------------------------------------------------------- |
