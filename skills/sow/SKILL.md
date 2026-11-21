@@ -7,18 +7,20 @@ description: >
   "configure typescript", or "sow".
 metadata:
   author: Mark Anthony Cianfrani
-  version: "0.8"
+  version: "0.9"
 ---
 
 # Sow - TypeScript Project Setup
 
-You help set up TypeScript projects with standardized tooling: oxlint for linting, oxfmt for formatting, and strict TypeScript configuration. Type-aware linting is available but off by default — it is an opt-in (see "Type-Aware Linting" below).
+You help set up TypeScript projects with standardized tooling: oxlint for linting, oxfmt for formatting, and strict TypeScript configuration. Type-aware linting ships on — the `lint` script runs with `--type-aware` backed by tsrs (see "Type-Aware Linting" below)
 
 ## Dependencies
 
 Dev dependencies to install:
 
+- `@cianfrani/oxlint-config`
 - `oxlint`
+- `tsrs`
 - `oxfmt`
 - `typescript`
 - `@j178/prek`
@@ -53,16 +55,16 @@ Using the detected package manager:
 
 ```bash
 # bun
-bun add -d @cianfrani/oxlint-config oxlint oxfmt typescript @j178/prek knip
+bun add -d @cianfrani/oxlint-config oxlint tsrs oxfmt typescript @j178/prek knip
 
 # pnpm
-pnpm add -D @cianfrani/oxlint-config oxlint oxfmt typescript @j178/prek knip
+pnpm add -D @cianfrani/oxlint-config oxlint tsrs oxfmt typescript @j178/prek knip
 
 # yarn
-yarn add -D @cianfrani/oxlint-config oxlint oxfmt typescript @j178/prek knip
+yarn add -D @cianfrani/oxlint-config oxlint tsrs oxfmt typescript @j178/prek knip
 
 # npm
-npm install -D @cianfrani/oxlint-config oxlint oxfmt typescript @j178/prek knip
+npm install -D @cianfrani/oxlint-config oxlint tsrs oxfmt typescript @j178/prek knip
 ```
 
 ### 2. Create/Update Configs
@@ -123,61 +125,30 @@ If they choose to remove, delete:
 - `.prettierrc*`, `prettier.config.*`
 - Related packages from dependencies
 
-### 5. Type-Aware Linting (opt-in)
+### 5. Type-Aware Linting (on by default)
 
-Type-aware rules are **off by default** and not in `.oxlintrc.json`. They need a second binary — **tsrs**, the Rust backend built on oxc's TypeScript runner (oxlint auto-detects it when installed; `oxlint-tsgolint` is the older Go alternative, same flags) — and run slower than the syntactic pass. Leaving them out keeps the default `lint` honest — every rule in the base config actually runs.
+The scaffolded `lint` script ships with `--type-aware`, backed by **tsrs** — the Rust type-aware backend built on oxc's TypeScript runner (oxlint auto-detects it when installed; `oxlint-tsgolint` is the older Go alternative, same flags). The curated type-aware rules (`no-floating-promises`, `no-misused-promises`, `no-unnecessary-type-assertion`, `no-unnecessary-condition`, `prefer-nullish-coalescing`, `prefer-optional-chain`, `strict-void-return`, `consistent-type-exports`, `no-deprecated`) live in `base.json` with everything else — nothing to add per project.
 
-The `--tsconfig` flag on the default `lint` script does **not** enable these rules. It only points oxlint's import plugin at the tsconfig for path-alias resolution. Type-aware rules require a separate flag and binary.
+Why always-on: the pass costs roughly nothing at scaffold scale (measured: 0.52s syntactic vs 0.54s type-aware on 150 files, hot cache), and one strong lint beats two commands where people run the weak one by reflex and feel covered. Type-aware rules catch real runtime failures (floating promises, misused promises, unsafe assertions) that the syntactic pass is structurally blind to.
 
-To turn type-aware linting on for a project:
+Two mechanical notes:
 
-1. Install the backend:
+- The `--tsconfig` flag still only points oxlint's import plugin at the tsconfig for path-alias resolution. `--type-aware` is what engages tsrs.
+- Enabling via the script flag (not `options.typeAware` in config) is deliberate: the pre-commit hook runs plain `oxlint`, so it stays fast and syntactic-only **by construction** — no second config to drift. The hook checks staged files in milliseconds; `lint` in CI is the real gate.
 
-   ```bash
-   <pkg-manager> add -D tsrs
-   ```
+Pin `tsrs` in devDependencies like any other package. Its version looks like `0.25.0-ts7.1.0-beta` — it tracks the TypeScript version it embeds, so upgrades there are like TS upgrades: deliberate, in their own commit. It embeds its own compiler and does not use the project's `typescript` package.
 
-   Pin it in devDependencies like any other package. Its version looks like `0.25.0-ts7.1.0-beta` — it tracks the TypeScript version it embeds, so upgrades there are like TS upgrades: deliberate, in their own commit.
+`--type-aware` turns on the typescript plugin's **whole** type-aware rule set, not only the ones in `base.json`. Findings will surface from rules you never wrote down — commonly `typescript/unbound-method`, `typescript/no-redundant-type-constituents`, and `typescript/no-unsafe-type-assertion`. Decide each per project: fix the code, or set the rule `"off"` with a reason. (Example: `unbound-method` fires on every destructured method, so a codebase whose core pattern is `const { method } = ctx` turns it off rather than fight its own idiom.) Use `--type-aware --debug timings` to see which rules cost the most before turning one off for performance.
 
-2. Add the rules to `.oxlintrc.json`:
+Five type-aware rules are `"off"` in `base.json` (`no-implied-eval`, `prefer-promise-reject-errors`, `require-await`, `prefer-includes`, `prefer-string-starts-ends-with`) and stay off even with `--type-aware` — an explicit `off` beats the category default. Decide each on merit per project; `no-implied-eval` first, it's the only safety rule of the five.
 
-   ```json
-   "typescript/consistent-type-exports": "error",
-   "typescript/no-deprecated": "error",
-   "typescript/no-floating-promises": "error",
-   "typescript/no-misused-promises": "error",
-   "typescript/no-unnecessary-type-assertion": "error",
-   "typescript/no-unnecessary-condition": "error",
-   "typescript/prefer-nullish-coalescing": "error",
-   "typescript/prefer-optional-chain": "error",
-   "typescript/strict-void-return": "error"
-   ```
+In monorepos, type-aware linting needs resolved types: install dependencies and build dependent workspace packages first (`pnpm install && pnpm -r build`) so their `.d.ts` files exist, or the backend builds programs against missing shapes. On large repos, measure the pass before assuming parity with the syntactic runtime — program build cost scales with file count and dependency types.
 
-   `no-deprecated` belongs here too: it resolves `@deprecated` JSDoc tags on symbols across files, so it needs type information and does nothing under plain `oxlint`.
+To fold type-checking into the same run, add `--type-check`. It reports tsc's compiler errors from the TypeScript program the backend already built, instead of a separate `tsc` pass.
 
-   `prefer-nullish-coalescing` and `prefer-optional-chain` belong here, not in the base config: both need type information to know whether an operand is nullable, so under plain `oxlint` they silently do nothing.
+Opting out per project: drop `--type-aware` from the `lint` script (and the `tsrs` devDep). The type-aware rules in `base.json` then no-op — they are inert without the flag, same as the five offs.
 
-   `consistent-type-exports` mirrors the base config's `consistent-type-imports` — it needs types to know which exports are type-only. `strict-void-return` widens `no-misused-promises` to every void-returning position, not just promises; it can be noisy on event handlers.
-
-In monorepos, type-aware linting needs resolved types: install dependencies and build dependent workspace packages first (`pnpm install && pnpm -r build`) so their `.d.ts` files exist, or the backend builds programs against missing shapes.
-
-3. Add `--type-aware` to the existing `lint` script so there is still one lint command, and it's the strong one:
-
-   ```json
-   "lint": "oxlint --tsconfig tsconfig.json --type-aware"
-   ```
-
-   Don't ship a separate `lint:type-aware` script — a second command just means people run the weaker one by reflex and feel covered when they aren't. Make `lint` the full check.
-
-   `--type-aware` turns on the typescript plugin's **whole** type-aware rule set, not only the ones you listed. Findings will surface from rules you never wrote down — commonly `typescript/unbound-method`, `typescript/no-redundant-type-constituents`, and `typescript/no-unsafe-type-assertion`. Decide each per project: fix the code, or set the rule `"off"` with a reason. (Example: `unbound-method` fires on every destructured method, so a codebase whose core pattern is `const { method } = ctx` turns it off rather than fight its own idiom.) Use `--type-aware --debug timings` to see which rules cost the most before turning one off for performance.
-
-   To fold type-checking into the same run, add `--type-check`. It reports tsc's compiler errors from the TypeScript program the linter already built, instead of a separate `tsc` pass.
-
-   Five type-aware rules are `"off"` in the base config (`no-implied-eval`, `prefer-promise-reject-errors`, `require-await`, `prefer-includes`, `prefer-string-starts-ends-with`) and stay off even with `--type-aware` — an explicit `off` beats the category default. They no-op'd under plain `oxlint`, so they were disabled. Now that they run, decide each on merit; `no-implied-eval` first, it's the only safety rule of the five.
-
-The pre-commit hook can stay syntactic-only (type-aware is too slow for the inner loop). Run the full type-aware `lint` in CI, where it's the real gate. That fast/slow split is local-vs-CI, not two scripts a developer juggles.
-
-Without `tsrs` (or `oxlint-tsgolint`) installed, `--type-aware` fails fast with: `Failed to find type-aware linter executable. You may need to add the `tsrs` or `oxlint-tsgolint` package to your project?` — so it never silently no-ops.
+Without `tsrs` (or `oxlint-tsgolint`) installed, `--type-aware` fails fast with: `Failed to find type-aware linter executable. You may need to add the tsrs or oxlint-tsgolint package to your project?` — so it never silently no-ops.
 
 ### 6. Complexity Rules
 

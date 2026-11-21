@@ -1,8 +1,8 @@
 {
   "scripts": {
     "check": "tsc --noEmit",
-    "lint": "oxlint --tsconfig tsconfig.json",
-    "lint:fix": "oxlint --tsconfig tsconfig.json --fix",
+    "lint": "oxlint --tsconfig tsconfig.json --type-aware",
+    "lint:fix": "oxlint --tsconfig tsconfig.json --type-aware --fix",
     "format": "oxfmt --write .",
     "format:check": "oxfmt --check .",
     "knip": "knip",
