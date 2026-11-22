@@ -2,6 +2,11 @@ import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-a
 import type { AutocompleteProvider } from "@earendil-works/pi-tui";
 
 const HERDR_COMMAND_TIMEOUT_MS = 10_000;
+const GUI_TAB_LABEL = "fork";
+
+type HerdrDestination = "pane" | "tab";
+/** Which Herdr is hosting this Pi: the terminal multiplexer TUI or the desktop app. */
+type HerdrHost = "tui" | "gui";
 
 function shellQuote(value: string): string {
   return `'${value.replaceAll("'", String.raw`'\\''`)}'`;
@@ -37,8 +42,13 @@ function findPaneId(value: unknown): string | undefined {
   return undefined;
 }
 
-async function runHerdr(pi: ExtensionAPI, args: string[], cwd: string): Promise<unknown> {
-  const result = await pi.exec("herdr", args, {
+async function runJsonCommand(
+  pi: ExtensionAPI,
+  command: string,
+  args: string[],
+  cwd: string,
+): Promise<unknown> {
+  const result = await pi.exec(command, args, {
     cwd,
     timeout: HERDR_COMMAND_TIMEOUT_MS,
   });
@@ -55,8 +65,26 @@ async function runHerdr(pi: ExtensionAPI, args: string[], cwd: string): Promise<
   try {
     return JSON.parse(result.stdout) as unknown;
   } catch {
-    throw new Error(`Herdr returned invalid JSON: ${result.stdout.trim()}`);
+    throw new Error(`${command} returned invalid JSON: ${result.stdout.trim()}`);
   }
+}
+
+function runHerdr(pi: ExtensionAPI, args: string[], cwd: string): Promise<unknown> {
+  return runJsonCommand(pi, "herdr", args, cwd);
+}
+
+function readField(value: unknown, key: string): unknown {
+  return typeof value === "object" && value !== null ? Reflect.get(value, key) : undefined;
+}
+
+function readId(value: unknown, key: string): string | undefined {
+  const field = readField(value, key);
+  return typeof field === "string" && field.length > 0 ? field : undefined;
+}
+
+function readList(value: unknown, key: string): unknown[] {
+  const field = readField(value, key);
+  return Array.isArray(field) ? field : [];
 }
 
 function getHerdrPaneId(): string | undefined {
@@ -64,19 +92,51 @@ function getHerdrPaneId(): string | undefined {
   return paneId !== undefined && paneId.length > 0 ? paneId : undefined;
 }
 
-async function forkIntoHerdr(
-  pi: ExtensionAPI,
-  ctx: ExtensionContext,
-  destination: "pane" | "tab",
-): Promise<string> {
+function getCoreTerminalId(): string | undefined {
+  const terminalId = process.env["HC_TERMINAL_ID"]?.trim();
+  return terminalId !== undefined && terminalId.length > 0 ? terminalId : undefined;
+}
+
+/**
+ * The two Herdr hosts inject different caller context and run on different
+ * servers, so the same `/fork` has to be answered by a different tool:
+ *
+ * - Herdr TUI pane: `HERDR_ENV=1` + `HERDR_PANE_ID`, driven by `herdr` and its
+ *   workspace/tab/pane IDs.
+ * - Herdr desktop app terminal: `HC_TERMINAL_ID` (a herdr-core terminal
+ *   address, not a pane ID), driven by `herdr-app do …`, which is exactly what
+ *   the app's Cmd+T / split shortcuts dispatch.
+ *
+ * Prefer the innermost Herdr when both are present, e.g. a TUI attach started
+ * from a desktop-app terminal.
+ */
+function detectHerdrHost(): HerdrHost | undefined {
+  if (process.env["HERDR_ENV"] === "1" && getHerdrPaneId() !== undefined) {
+    return "tui";
+  }
+  if (getCoreTerminalId() !== undefined) {
+    return "gui";
+  }
+  return undefined;
+}
+
+function getSessionFile(ctx: ExtensionContext): string {
   const sessionFile = ctx.sessionManager.getSessionFile();
   if (sessionFile === undefined) {
     throw new Error("The current Pi session is ephemeral, so it cannot be forked.");
   }
+  return sessionFile;
+}
 
+async function forkIntoHerdrTui(
+  pi: ExtensionAPI,
+  ctx: ExtensionContext,
+  destination: HerdrDestination,
+  sessionFile: string,
+): Promise<string> {
   const currentPaneId = getHerdrPaneId();
-  if (process.env["HERDR_ENV"] !== "1" || currentPaneId === undefined) {
-    throw new Error("/fork pane and /fork tab require Pi to be running inside Herdr.");
+  if (currentPaneId === undefined) {
+    throw new Error("Herdr did not tell Pi which pane it is running in.");
   }
 
   let targetPaneId: string | undefined;
@@ -107,6 +167,123 @@ async function forkIntoHerdr(
   );
 
   return targetPaneId;
+}
+
+interface GuiLocation {
+  paneId: string;
+  spaceId: string;
+}
+
+/**
+ * `HC_TERMINAL_ID` is a terminal address, not a pane or tab id, so resolve the
+ * pane and space hosting this terminal. Doing that instead of relying on the
+ * app's focused pane keeps the fork attached to this Pi's own tab even when the
+ * person is looking somewhere else.
+ */
+async function locateGuiTerminal(pi: ExtensionAPI, cwd: string): Promise<GuiLocation> {
+  const terminalId = getCoreTerminalId();
+  if (terminalId === undefined) {
+    throw new Error("Herdr did not tell Pi which terminal it is running in.");
+  }
+
+  const listing = await runJsonCommand(pi, "herdr-app", ["ls"], cwd);
+  const spaces = readField(listing, "spaces");
+  if (!Array.isArray(spaces)) {
+    throw new TypeError("herdr-app ls returned no spaces. Is the Herdr window open?");
+  }
+
+  for (const space of spaces) {
+    for (const tab of readList(space, "tabs")) {
+      for (const terminal of readList(tab, "terminals")) {
+        if (readId(terminal, "terminal") === terminalId) {
+          const paneId = readId(terminal, "pane");
+          const spaceId = readId(space, "id");
+          if (paneId === undefined || spaceId === undefined) {
+            throw new Error("herdr-app ls did not report the pane hosting this terminal.");
+          }
+          return { paneId, spaceId };
+        }
+      }
+    }
+  }
+
+  throw new Error(`The Herdr window is not showing terminal ${terminalId}.`);
+}
+
+async function forkIntoHerdrGui(
+  pi: ExtensionAPI,
+  ctx: ExtensionContext,
+  destination: HerdrDestination,
+  sessionFile: string,
+): Promise<string> {
+  const location = await locateGuiTerminal(pi, ctx.cwd);
+  // The desktop app execs argv in the new terminal instead of typing a command
+  // line into a shell, so arguments need no shell quoting.
+  const argv = ["pi", "--fork", sessionFile];
+
+  if (destination === "pane") {
+    const split = await runJsonCommand(
+      pi,
+      "herdr-app",
+      ["do", "pane.split", JSON.stringify({ argv, direction: "right", pane: location.paneId })],
+      ctx.cwd,
+    );
+
+    // A split can take the focus; hold this pane in front the way the TUI path
+    // passes --no-focus.
+    await runJsonCommand(
+      pi,
+      "herdr-app",
+      ["do", "pane.focus", JSON.stringify({ pane: location.paneId })],
+      ctx.cwd,
+    );
+
+    return readId(split, "pane") ?? location.paneId;
+  }
+
+  // focus false appends the tab and keeps the shown one, matching the TUI
+  // path's --no-focus; pane.split has no focus argument, hence the pane.focus
+  // call above instead.
+  const tab = await runJsonCommand(
+    pi,
+    "herdr-app",
+    [
+      "do",
+      "tab.new",
+      JSON.stringify({
+        argv,
+        focus: false,
+        folder: ctx.cwd,
+        name: GUI_TAB_LABEL,
+        space: location.spaceId,
+      }),
+    ],
+    ctx.cwd,
+  );
+
+  return readId(tab, "tab") ?? location.spaceId;
+}
+
+async function forkIntoHerdr(
+  pi: ExtensionAPI,
+  ctx: ExtensionContext,
+  destination: HerdrDestination,
+): Promise<string> {
+  const sessionFile = getSessionFile(ctx);
+  const host = detectHerdrHost();
+
+  if (host === undefined) {
+    throw new Error(
+      "/fork pane and /fork tab need Pi running inside Herdr (a TUI pane or a desktop app terminal).",
+    );
+  }
+
+  const target =
+    host === "tui"
+      ? await forkIntoHerdrTui(pi, ctx, destination, sessionFile)
+      : await forkIntoHerdrGui(pi, ctx, destination, sessionFile);
+
+  return target;
 }
 
 const FORK_ARGUMENTS = [
@@ -184,10 +361,10 @@ function forkHerdrExtension(pi: ExtensionAPI): void {
       return { action: "continue" };
     }
 
-    const destination = match[1] === "pane" ? "pane" : "tab";
+    const destination: HerdrDestination = match[1] === "pane" ? "pane" : "tab";
     try {
-      const paneId = await forkIntoHerdr(pi, ctx, destination);
-      ctx.ui.notify(`Forked Pi session into Herdr ${destination} (${paneId})`, "info");
+      const target = await forkIntoHerdr(pi, ctx, destination);
+      ctx.ui.notify(`Forked Pi session into Herdr ${destination} (${target})`, "info");
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       ctx.ui.notify(`Could not fork into Herdr ${destination}: ${message}`, "error");
