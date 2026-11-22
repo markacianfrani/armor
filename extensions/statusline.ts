@@ -285,12 +285,36 @@ function parseUsageStatus(
   return parseUsageData(value);
 }
 
+/**
+ * Plain-text segment published by a provider extension as `router:<provider>`.
+ *
+ * Where `usage:<provider>` draws bars, this is free text for state that is not a percentage —
+ * `hybrid/auto` publishes which lane answered (`heavy · decision 54% · $0.42`).
+ */
+function parseRouterSegment(
+  statuses: ReadonlyMap<string, string>,
+  provider: string | undefined,
+): string | undefined {
+  if (provider === undefined || provider === "") {
+    return undefined;
+  }
+
+  const value = statuses.get(`router:${provider}`);
+  if (value === undefined) {
+    return undefined;
+  }
+
+  const text = value.trim();
+  return text === "" ? undefined : text;
+}
+
 // ── Right side layout ──
 
 function renderRight(
   branch: string | null,
   model: string,
   cwd: string,
+  segment: string | undefined,
   usage: UsageData | undefined,
   maxWidth: number,
 ): string {
@@ -299,7 +323,15 @@ function renderRight(
   const modelPart = fg(DIM, model);
   const sepW = visibleWidth(sep);
 
-  const baseStr = cwdPart + sep + modelPart;
+  // The router segment shares the dim treatment of the model. It gets a fixed share of the bar,
+  // not a fraction: lane names and reasons are short, and `heavy · decision 54% · $0.42` fits.
+  const segmentText =
+    segment === undefined
+      ? ""
+      : truncateToWidth(segment, Math.max(10, Math.min(36, Math.floor(maxWidth / 2))), "…");
+  const segmentPart = segmentText === "" ? "" : fg(DIM, segmentText);
+
+  const baseStr = cwdPart + sep + modelPart + (segmentPart ? sep + segmentPart : "");
   const baseW = visibleWidth(baseStr);
 
   let usagePart = "";
@@ -310,7 +342,7 @@ function renderRight(
     }
   }
 
-  const tail = usagePart ? modelPart + sep + usagePart : modelPart;
+  const tail = [modelPart, segmentPart, usagePart].filter(Boolean).join(sep);
 
   if (branch === null || branch === "") {
     return truncateToWidth(cwdPart + sep + tail, maxWidth);
@@ -334,6 +366,9 @@ function padBetween(left: string, right: string, width: number): string {
 
 // ── Extension ──
 
+// The footer below calls this; exported so the right-hand layout can be rendered in isolation.
+export { renderRight };
+
 export default function statusline(pi: ExtensionAPI) {
   pi.on("session_start", (_event, ctx) => {
     ctx.ui.setFooter((tui, _theme, footerData) => {
@@ -350,11 +385,13 @@ export default function statusline(pi: ExtensionAPI) {
           const model = ctx.model?.id.split("/").pop() ?? "?";
           const dir = basename(ctx.cwd);
 
-          const usage = parseUsageStatus(footerData.getExtensionStatuses(), ctx.model?.provider);
+          const statuses = footerData.getExtensionStatuses();
+          const usage = parseUsageStatus(statuses, ctx.model?.provider);
+          const segment = parseRouterSegment(statuses, ctx.model?.provider);
 
           const left = renderLeft(percent);
           const leftW = visibleWidth(left);
-          const right = renderRight(branch, model, dir, usage, width - leftW - 1);
+          const right = renderRight(branch, model, dir, segment, usage, width - leftW - 1);
           const pad = padBetween(left, right, width);
 
           return [truncateToWidth(left + pad + right, width)];
